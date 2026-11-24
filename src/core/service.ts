@@ -734,6 +734,12 @@ export class Hotseat {
     return text;
   }
 
+  /** 每条用户消息都会调用；同一个会话只在第一条消息时注入交接（会话表里已有这条会话就放行）。 */
+  async firstPrompt(input: HookInput, maxChars: number): Promise<string | null> {
+    if (dbx.getSession(this.db, input.agent, input.sessionId ?? "unknown")) return null;
+    return this.sessionStart(input, maxChars);
+  }
+
   async stopCheck(input: HookInput): Promise<{ action: "allow" } | { action: "block"; message: string }> {
     const allow = { action: "allow" } as const;
     const r = this.resolve({ cwds: [input.cwd, ...input.roots] });

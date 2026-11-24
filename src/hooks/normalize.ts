@@ -52,12 +52,14 @@ function agyStopStatus(r: Raw): StopStatusT {
 export function normalizeHookInput(agent: AgentId, event: HookEvent, raw: unknown, env: Env = {}): HookInput {
   const family = familyOf(agent);
   const r: Raw = raw !== null && typeof raw === "object" && !Array.isArray(raw) ? (raw as Raw) : {};
-  const isStart = event === "session-start";
+  const isStart = event !== "stop";
   const base = { v: 1 as const, agent, event };
 
   switch (family) {
+    // Gemini CLI 的字段和 Claude Code 一样（session_id、cwd、stop_hook_active、transcript_path）
+    case "gemini":
     case "claude": {
-      const dirs = withRoots(str(r.cwd) ?? str(env.CLAUDE_PROJECT_DIR), null);
+      const dirs = withRoots(str(r.cwd) ?? str(env.CLAUDE_PROJECT_DIR) ?? str(env.GEMINI_PROJECT_DIR), null);
       const source = SessionSource.safeParse(r.source);
       return {
         ...base,
@@ -88,6 +90,21 @@ export function normalizeHookInput(agent: AgentId, event: HookEvent, raw: unknow
         transcriptPath: str(r.transcript_path),
       };
     }
+    // Kimi Code：字段一律 snake_case；Stop 带 turn_id 和 stop_hook_active
+    case "kimi": {
+      const dirs = withRoots(str(r.cwd), null);
+      return {
+        ...base,
+        sessionId: str(r.session_id),
+        turnId: str(r.turn_id),
+        ...dirs,
+        source: null,
+        continued: isStart ? null : bool(r.stop_hook_active),
+        stopStatus: isStart ? null : "completed",
+        lastAssistantMessage: null,
+        transcriptPath: null,
+      };
+    }
     case "agy": {
       const dirs = withRoots(str(r.cwd), strArr(r.workspacePaths));
       const exec = num(r.executionNum);
@@ -114,8 +131,10 @@ export function renderHookOutput(agent: AgentId, decision: HookDecision): HookOu
 
   switch (family) {
     case "claude": {
-      if (decision.event === "session-start") {
+      if (decision.event !== "stop") {
         if (decision.context === null) return empty;
+        // 通义灵码等没有会话开始事件的，在第一条消息（UserPromptSubmit）时注入
+        if (decision.event === "prompt") return json({ hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: decision.context } });
         // Codex 官方写明纯文本会作为开发者上下文；其他 Claude 族用 Claude Code 的 JSON 格式。
         if (agent === "codex") return { stdout: decision.context, exitCode: 0 };
         return json({ hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: decision.context } });
@@ -130,14 +149,27 @@ export function renderHookOutput(agent: AgentId, decision: HookDecision): HookOu
           : {}),
       });
     }
+    // Gemini CLI：SessionStart 和 Claude 一样；每轮结束是 AfterAgent，decision 为 deny 时 reason 作为新提示让它接着做
+    case "gemini": {
+      if (decision.event !== "stop") {
+        return decision.context === null ? empty : json({ hookSpecificOutput: { hookEventName: decision.event === "prompt" ? "BeforeAgent" : "SessionStart", additionalContext: decision.context } });
+      }
+      return decision.action === "allow" ? empty : json({ decision: "deny", reason: decision.message });
+    }
+    // Kimi Code（本机 0.30 程序核对）：SessionStart 的输出会被丢掉，所以在第一条消息（UserPromptSubmit）时用 message 注入；
+    // Stop 用 hookSpecificOutput.permissionDecision = deny 拦截，permissionDecisionReason 作为用户消息让它接着做（每轮最多一次）
+    case "kimi": {
+      if (decision.event !== "stop") return decision.context === null ? empty : json({ message: decision.context });
+      return decision.action === "allow" ? empty : json({ hookSpecificOutput: { permissionDecision: "deny", permissionDecisionReason: decision.message } });
+    }
     case "cursor": {
-      if (decision.event === "session-start") {
+      if (decision.event !== "stop") {
         return json(decision.context === null ? {} : { additional_context: decision.context });
       }
       return json(decision.action === "allow" ? {} : { followup_message: decision.message });
     }
     case "agy": {
-      if (decision.event === "session-start") {
+      if (decision.event !== "stop") {
         return json(
           decision.context === null ? {} : { injectSteps: [{ systemMessage: { systemMessage: decision.context } }] },
         );

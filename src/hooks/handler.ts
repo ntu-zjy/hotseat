@@ -31,16 +31,15 @@ export async function runHook(agentArg: string, eventArg: string, stdin: string,
     return { stdout: "", exitCode: 0 };
   }
   const failOpen: HookDecision = event === "stop" ? { event, action: "allow" } : { event, context: null };
+  const maxChars = adapterFor(agent)?.maxContextChars ?? DEFAULT_MAX_CHARS;
 
   const work = async (): Promise<HookDecision> => {
     const raw: unknown = stdin.trim() ? JSON.parse(stdin) : {};
     const input = normalizeHookInput(agent, event, raw, env);
     const svc = Hotseat.open({ home: hotseatHome(env), env });
     try {
-      if (event === "session-start") {
-        const context = await svc.sessionStart(input, adapterFor(agent)?.maxContextChars ?? DEFAULT_MAX_CHARS);
-        return { event, context };
-      }
+      if (event === "session-start") return { event, context: await svc.sessionStart(input, maxChars) };
+      if (event === "prompt") return { event, context: await svc.firstPrompt(input, maxChars) };
       const r = await svc.stopCheck(input);
       return r.action === "block" ? { event, action: "block", message: r.message } : { event, action: "allow" };
     } finally {

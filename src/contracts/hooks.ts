@@ -2,7 +2,9 @@
 import { z } from "zod";
 import { AgentId, Version, type AgentId as AgentIdT } from "./common.ts";
 
-export const HOOK_EVENTS = ["session-start", "stop"] as const;
+// prompt：每条用户消息提交时触发（UserPromptSubmit）。给会话开始的 Hook 不能注入上下文的工具用（Kimi Code、通义灵码），
+// 同一个会话只在第一条消息时注入一次交接，之后的消息直接放行。
+export const HOOK_EVENTS = ["session-start", "prompt", "stop"] as const;
 export const HookEvent = z.enum(HOOK_EVENTS);
 export type HookEvent = z.infer<typeof HookEvent>;
 
@@ -31,7 +33,7 @@ export type HookInput = z.infer<typeof HookInput>;
 
 /** 统一输出（§5.3）。 */
 export type HookDecision =
-  | { event: "session-start"; context: string | null }
+  | { event: "session-start" | "prompt"; context: string | null }
   | { event: "stop"; action: "allow" }
   | { event: "stop"; action: "block"; message: string };
 
@@ -43,7 +45,7 @@ export interface HookOutput {
 
 // ---------- 协议族（§5.4） ----------
 
-export const HOOK_FAMILIES = ["claude", "cursor", "agy"] as const;
+export const HOOK_FAMILIES = ["claude", "cursor", "agy", "gemini", "kimi"] as const;
 export type HookFamily = (typeof HOOK_FAMILIES)[number];
 
 export const AGENT_HOOK_FAMILY: Record<AgentIdT, HookFamily | null> = {
@@ -62,6 +64,9 @@ export const AGENT_HOOK_FAMILY: Record<AgentIdT, HookFamily | null> = {
   copilot: "cursor",
   kiro: null,
   windsurf: null,
+  kimi: "kimi",
+  gemini: "gemini",
+  opencode: null,
   human: null,
   unknown: null,
 };

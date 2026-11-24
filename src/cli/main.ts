@@ -37,10 +37,11 @@ const HELP = `Hotseat ${VERSION} — 多个 AI Agent 轮流接手同一个任务
 接入
   init [--only claude,agy] [--dry-run] [--yes] [--no-hooks] [--lang zh|en]
                          检测本机的 AI 工具，写入 MCP、规则和 Hook（会先展示改动并备份）
-                         支持：claude、agy、codex、cursor、qoder-cn
+                         支持：claude、agy、codex、cursor、qoder-cn、qoder、workbuddy、codebuddy、kimi、
+                         lingma、trae、trae-cn、gemini、copilot、windsurf、kiro、opencode
   doctor                 检查各工具的接入是否还在
   uninstall [--yes]      按标记移除 Hotseat 写入的所有配置（任务数据保留）
-  rules                  打印规则片段，给只能在设置里填规则的工具（如 Cursor）手动粘贴
+  rules                  打印规则片段，给只能在设置里填规则的工具（Cursor、Trae、通义灵码）手动粘贴
 
 任务
   new <名称> [--path <目录>] [--goal <目标>]   新建任务，默认绑定当前目录
@@ -55,7 +56,7 @@ const HELP = `Hotseat ${VERSION} — 多个 AI Agent 轮流接手同一个任务
 
 内部（由各工具调用）
   mcp                    启动 MCP 服务（stdio）
-  hook <agent> <event>   处理 Hook：event 为 session-start 或 stop
+  hook <agent> <event>   处理 Hook：event 为 session-start、prompt 或 stop
 `;
 
 interface Parsed {
@@ -153,6 +154,51 @@ function cwdOrNull(): string | null {
 
 // ---------- 命令 ----------
 
+const INIT_TEXT = {
+  zh: {
+    installAt: (bin: string) => `程序将固定安装到 ${bin}，各工具的配置都指向这个路径。\n`,
+    notDetected: (name: string) => `- ${name}：没有检测到，跳过`,
+    detected: (name: string, exp: boolean) => `- ${name}：已检测到${exp ? "（实验性）" : ""}`,
+    notes: (n: string[]) => `，${n.join("；")}`,
+    noneDetected: (names: string[]) => `\n没有检测到支持的工具。目前支持：${names.join("、")}。`,
+    upToDate: "\n各工具的配置已经是最新的，不需要修改。",
+    filesToChange: "\n将要修改的文件（只显示 Hotseat 写入的部分，其他内容保持不变）：",
+    dryRun: "\n--dry-run：只展示，不写入。",
+    confirm: "\n确认写入？修改前会自动备份。",
+    cancelled: "已取消，没有改动任何文件。",
+    skipped: (f: string) => `✗ ${f} 在确认期间被其他程序改动，已跳过。请重新运行 hotseat init。`,
+    updated: (v: string) => `\n✓ 程序已更新到 ${v}，各工具的配置没有改动。`,
+    updatedNote: "新开的 Agent 会话会用上新版；正在运行的会话要重开后才会用上新的 MCP 服务。",
+    wrote: (n: number, b: string) => `\n✓ 已写入 ${n} 个文件${n ? `，备份在 ${b}` : ""}`,
+    restart: (names: string[]) => `重启${names.join("、")}，让新配置生效。`,
+    newTaskCmd: 'hotseat new "任务名"',
+    newTask: (cmd: string) => `在项目目录运行 ${cmd}，或者直接让 Agent 帮你建任务。`,
+    review: (cmd: string) => `之后在这个目录里开新会话，Agent 会自动拿到上下文；Agent 提交的 memory 修改用 ${cmd} 确认。`,
+    nextSteps: "\n下一步：\n",
+  },
+  en: {
+    installAt: (bin: string) => `The program is installed at ${bin}; every tool's config points there.\n`,
+    notDetected: (name: string) => `- ${name}: not detected, skipped`,
+    detected: (name: string, exp: boolean) => `- ${name}: detected${exp ? " (experimental)" : ""}`,
+    notes: (n: string[]) => `, ${n.join("; ")}`,
+    noneDetected: (names: string[]) => `\nNo supported tools detected. Supported: ${names.join(", ")}.`,
+    upToDate: "\nEvery tool is already up to date.",
+    filesToChange: "\nFiles to change (only Hotseat's parts are shown; everything else stays as is):",
+    dryRun: "\n--dry-run: nothing written.",
+    confirm: "\nWrite these changes? Backups are made first.",
+    cancelled: "Cancelled. No files were changed.",
+    skipped: (f: string) => `✗ ${f} changed while you were confirming, so it was skipped. Run hotseat init again.`,
+    updated: (v: string) => `\n✓ Updated to ${v}; no tool configs changed.`,
+    updatedNote: "New agent sessions use the new version; restart running sessions to pick up the new MCP server.",
+    wrote: (n: number, b: string) => `\n✓ Wrote ${n} files${n ? `, backups in ${b}` : ""}`,
+    restart: (names: string[]) => `Restart ${names.join(", ")} so the new config takes effect.`,
+    newTaskCmd: 'hotseat new "task name"',
+    newTask: (cmd: string) => `In your project folder run ${cmd}, or just ask the agent to create a task.`,
+    review: (cmd: string) => `New sessions in that folder then get the context automatically; confirm memory edits from agents with ${cmd}.`,
+    nextSteps: "\nNext steps:\n",
+  },
+} as const;
+
 async function init(p: Parsed, env: Env): Promise<number> {
   const hs = hotseatHome(env);
   const configExists = existsSync(join(hs, ".hotseat", "config.json"));
@@ -161,35 +207,37 @@ async function init(p: Parsed, env: Env): Promise<number> {
   const only = str(p.flags.only)?.split(",").map((s) => s.trim()).filter(Boolean) ?? null;
   const parts: InstallPart[] = p.flags["no-hooks"] ? ["mcp", "rules"] : ["mcp", "rules", "hooks"];
 
+  // init 的提示语按语言输出（--lang、config.json 里的 lang，或系统语言）
+  const M = INIT_TEXT[lang];
   console.log(bold(`Hotseat ${VERSION}`));
-  console.log(`程序将固定安装到 ${tilde(ctx.bin)}，各工具的配置都指向这个路径。\n`);
+  console.log(M.installAt(tilde(ctx.bin)));
   const changes: PlannedChange[] = [];
   const targets: { agent: PlannedChange["agent"]; parts: InstallPart[] }[] = [];
   for (const adapter of pickAdapters(only)) {
     const d = await adapter.detect(ctx);
     if (!d.installed) {
-      console.log(dim(`- ${adapter.displayName}：没有检测到，跳过`));
+      console.log(dim(M.notDetected(adapter.displayName)));
       continue;
     }
-    console.log(`- ${adapter.displayName}：已检测到${adapter.experimental ? "（实验性）" : ""}${d.notes.length ? dim(`，${d.notes.join("；")}`) : ""}`);
+    console.log(`${M.detected(adapter.displayName, adapter.experimental)}${d.notes.length ? dim(M.notes(d.notes)) : ""}`);
     changes.push(...(await adapter.planInstall(ctx, { parts, projectRulesDir: null })));
     targets.push({ agent: adapter.id, parts });
   }
   if (targets.length === 0) {
-    console.log(`\n没有检测到支持的工具。目前支持：${pickAdapters(null).map((a) => a.displayName).join("、")}。`);
+    console.log(M.noneDetected(pickAdapters(null).map((a) => a.displayName)));
     return 1;
   }
-  if (changes.length === 0) console.log(green("\n各工具的配置已经是最新的，不需要修改。"));
+  if (changes.length === 0) console.log(green(M.upToDate));
   else {
-    console.log(bold("\n将要修改的文件（只显示 Hotseat 写入的部分，其他内容保持不变）："));
+    console.log(bold(M.filesToChange));
     printChanges(changes);
   }
   if (p.flags["dry-run"]) {
-    console.log(dim("\n--dry-run：只展示，不写入。"));
+    console.log(dim(M.dryRun));
     return 0;
   }
-  if (changes.length > 0 && !(await confirm(p.flags, "\n确认写入？修改前会自动备份。"))) {
-    console.log("已取消，没有改动任何文件。");
+  if (changes.length > 0 && !(await confirm(p.flags, M.confirm))) {
+    console.log(M.cancelled);
     return 1;
   }
   installProgram(ctx, bundlePath());
@@ -197,21 +245,21 @@ async function init(p: Parsed, env: Env): Promise<number> {
   const backup = backupDir(ctx);
   const { written, skipped } = applyChanges(changes, backup);
   recordInstall(hs, lang, targets);
-  for (const s of skipped) console.log(red(`✗ ${tilde(s.file)} 在确认期间被其他程序改动，已跳过。请重新运行 hotseat init。`));
+  for (const s of skipped) console.log(red(M.skipped(tilde(s.file))));
   if (configExists && written.length === 0 && skipped.length === 0) {
     // 已经装过、配置也没变：这次只是更新程序
-    console.log(green(`\n✓ 程序已更新到 ${VERSION}，各工具的配置没有改动。`));
-    console.log("新开的 Agent 会话会用上新版；正在运行的会话要重开后才会用上新的 MCP 服务。");
+    console.log(green(M.updated(VERSION)));
+    console.log(M.updatedNote);
     return 0;
   }
-  console.log(green(`\n✓ 已写入 ${written.length} 个文件${written.length ? `，备份在 ${tilde(backup)}` : ""}`));
+  console.log(green(M.wrote(written.length, tilde(backup))));
   const steps = [
-    `重启${targets.map((t) => adapterFor(t.agent)?.displayName ?? t.agent).join("、")}，让新配置生效。`,
+    M.restart(targets.map((t) => adapterFor(t.agent)?.displayName ?? t.agent)),
     ...targets.flatMap((t) => adapterFor(t.agent)?.afterInstall ?? []),
-    `在项目目录运行 ${bold('hotseat new "任务名"')}，或者直接让 Agent 帮你建任务。`,
-    `之后在这个目录里开新会话，Agent 会自动拿到上下文；Agent 提交的 memory 修改用 ${bold("hotseat review")} 确认。`,
+    M.newTask(bold(M.newTaskCmd)),
+    M.review(bold("hotseat review")),
   ];
-  console.log(`\n下一步：\n${steps.map((s, i) => `  ${i + 1}. ${s}`).join("\n")}`);
+  console.log(`${M.nextSteps}${steps.map((s, i) => `  ${i + 1}. ${s}`).join("\n")}`);
   return skipped.length > 0 ? 1 : 0;
 }
 

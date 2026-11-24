@@ -21,6 +21,9 @@ export const AGENT_IDS = [
   "copilot",
   "kiro",
   "windsurf",
+  "kimi",
+  "gemini",
+  "opencode",
   "human",
   "unknown",
 ] as const;

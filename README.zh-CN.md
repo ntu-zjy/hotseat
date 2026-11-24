@@ -6,14 +6,14 @@
 
 **换个 AI Agent 接着干，它已经什么都知道了。**
 
-一条命令，让 Claude Code、Codex、Cursor、Antigravity 等 Agent 共用同一份本地任务上下文。<br>
+一条命令，让 Claude Code、Codex、Cursor、WorkBuddy、Kimi Code、Qoder、通义灵码等 17 个 Agent 共用同一份本地任务上下文。<br>
 不用再说「总结一下」，也不用再说「先读一下文件夹」。
 
 [English](README.md) · 简体中文
 
-<a href="https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-zh.mp4"><img src="docs/media/hotseat-demo.gif" width="800" alt="运行 npx hotseat init，从 Claude 切到 Antigravity，只说「继续」，它从 Claude 停下的地方接着做"></a>
+<a href="https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-zh.mp4"><img src="docs/media/hotseat-demo-zh.gif" width="800" alt="运行 npx hotseat init，从 Claude 切到 Antigravity，只说「继续」，它从 Claude 停下的地方接着做"></a>
 
-▶ [看完整 64 秒视频（有配音和配乐）](https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-zh.mp4)
+▶ [看完整视频（72 秒，有配音和配乐）](https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-zh.mp4) · [English](https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-en.mp4)
 
 </div>
 
@@ -86,11 +86,25 @@ npx hotseat init
 | Codex（CLI 和桌面 App） | 🧪 实验性 | ✅ | ✅ | ✅ ¹ | ✅ ¹ |
 | Cursor | 🧪 实验性 | ✅ | 手动 ² | ✅ | ✅ |
 | Qoder CN（桌面 App 和 CLI） | 🧪 实验性 | ✅ | ✅ | ✅ | ✅ |
-| Trae、WorkBuddy | 计划中 | | | | |
-| 其他支持 MCP 的工具 | 手动接入 | ✅ | 写进该工具的规则文件 | — | — |
+| Qoder（海外版） | 🧪 实验性 | ✅ | ✅ | ✅ | ✅ |
+| WorkBuddy（腾讯） | 🧪 实验性 | ✅ | ✅ | ✅ | ✅ |
+| CodeBuddy Code（腾讯） | 🧪 实验性 | ✅ | ✅ | ✅ | ✅ |
+| Kimi Code（月之暗面） | 🧪 实验性 | ✅ | ✅ | ✅ ³ | ✅ |
+| Gemini CLI | 🧪 实验性 | ✅ | ✅ | ✅ ⁴ | ✅ ⁴ |
+| 通义灵码（阿里） | 🧪 实验性 | 手动 ⁵ | 手动 ² | ✅ ³ | ✅ |
+| Trae / Trae CN（字节跳动） | 🧪 实验性 | 手动 ⁵ | 手动 ² | 靠规则 | — |
+| GitHub Copilot（CLI 和 App） | 🧪 实验性 | ✅ | ✅ | 靠规则 | — |
+| Windsurf | 🧪 实验性 | ✅ | ✅ | 靠规则 | — |
+| Kiro | 🧪 实验性 | ✅ | ✅ | 靠规则 | — |
+| OpenCode | 🧪 实验性 | ✅ | ✅ | 靠规则 | — |
+| 其他支持 MCP 的工具 | 手动接入 | ✅ | 写进该工具的规则文件 | 靠规则 | — |
 
 ¹ Codex 的新 Hook 要你信任后才会运行：在 Codex 里输入 `/hooks`。<br>
-² Cursor 的用户级规则只能在设置里填。可选：运行 `hotseat rules`，把输出粘贴到「设置 → Rules → User Rules」。
+² 这些工具的用户级规则只能在设置里填：运行 `hotseat rules`，把输出粘贴进去。<br>
+³ 这些工具不采用会话开始 Hook 的输出，所以在每个会话的第一条消息时注入交接（只注入一次）。<br>
+⁴ Gemini CLI：输入 `/hooks` 确认 Hotseat 的 Hook 已启用。<br>
+⁵ 这些工具只能在界面里添加 MCP 服务，`hotseat init` 会打印要粘贴的 JSON。<br>
+「靠规则」：没有 Hook，由规则让 Agent 在会话开始时自己调用 `hotseat.get_context`。
 
 没有你用的工具？[提个 issue](../../issues)。一个适配器就是一个文件。
 

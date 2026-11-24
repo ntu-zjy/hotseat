@@ -17,7 +17,7 @@ function sandbox() {
   mkdirSync(project, { recursive: true });
   const env = { ...process.env, HOME: home, HOTSEAT_HOME: join(home, "Hotseat"), LANG: "zh_CN.UTF-8" };
   // 这些变量会让适配器去改真实的配置目录，测试里一律去掉
-  for (const k of ["CLAUDE_PROJECT_DIR", "HOTSEAT_TASK", "CODEX_HOME", "QODERCN_CONFIG_DIR", "CURSOR_PROJECT_DIR"]) delete (env as Record<string, string | undefined>)[k];
+  for (const k of ["CLAUDE_PROJECT_DIR", "HOTSEAT_TASK", "CODEX_HOME", "QODERCN_CONFIG_DIR", "QODER_CONFIG_DIR", "KIMI_CODE_HOME", "GEMINI_PROJECT_DIR", "CURSOR_PROJECT_DIR"]) delete (env as Record<string, string | undefined>)[k];
   return { home, project, env };
 }
 
@@ -171,6 +171,85 @@ test("Codex、Cursor、Qoder CN：init 写入、Hook 按各自格式输出、uni
   assert.equal(readFileSync(join(home, ".cursor", "mcp.json"), "utf8"), cursorMcp);
   assert.equal(readFileSync(join(home, ".qoder-cn", "settings.json"), "utf8"), qoderSettings);
   for (const f of [".codex/hooks.json", ".codex/AGENTS.md", ".cursor/hooks.json", ".qoder-cn/AGENTS.md"]) assert.equal(existsSync(join(home, f)), false, f);
+});
+
+test("第二批 12 个工具：init 写入、manual 步骤、Hook 各自格式、首条消息只注入一次、uninstall 逐字节还原", () => {
+  const { home, project, env } = sandbox();
+  const files: Record<string, string> = {
+    ".workbuddy/settings.json": `${JSON.stringify({ model: "hunyuan-t1" }, null, 2)}\n`,
+    ".codebuddy/.mcp.json": JSON.stringify({ mcpServers: { other: { command: "other-mcp" } } }, null, 2),
+    ".kimi-code/config.toml": 'default_model = "kimi-k2"\n\n[models.kimi-k2]\nprovider = "kimi"\n',
+    ".kimi-code/AGENTS.md": "# 我的规则\n- 回答用中文\n",
+    ".lingma/settings.json": `${JSON.stringify({ theme: "dark" }, null, 2)}\n`,
+    ".gemini/settings.json": `${JSON.stringify({ theme: "Default", mcpServers: { github: { command: "gh-mcp" } } }, null, 2)}\n`,
+    ".codeium/windsurf/memories/global_rules.md": "Be concise.\n",
+    ".config/opencode/opencode.json": `${JSON.stringify({ $schema: "https://opencode.ai/config.json", provider: {} }, null, 2)}\n`,
+  };
+  for (const d of [".qoder", ".trae", ".trae-cn", ".copilot", ".kiro"]) mkdirSync(join(home, d), { recursive: true });
+  for (const [f, text] of Object.entries(files)) {
+    mkdirSync(join(home, f, ".."), { recursive: true });
+    writeFileSync(join(home, f), text);
+  }
+
+  const r = cli(env, ["init", "--yes"]);
+  assert.equal(r.code, 0, r.out + r.err);
+  for (const name of ["WorkBuddy", "CodeBuddy", "Kimi Code", "Qoder", "通义灵码", "Trae CN", "Trae", "Gemini CLI", "GitHub Copilot", "Windsurf", "Kiro", "OpenCode"]) {
+    assert.match(r.out, new RegExp(`- ${name}：已检测到（实验性）`), name);
+  }
+  assert.match(r.out, /需要手动添加 MCP 服务/); // Trae、通义灵码只能在界面里添加
+  assert.match(r.out, /在 Gemini CLI 里输入 \/hooks|Gemini CLI 里输入 \/hooks/);
+  const bin = join(home, "Hotseat", ".hotseat", "bin", "hotseat");
+
+  // 各自的配置格式
+  assert.equal(readJson(join(home, ".workbuddy", "settings.json")).model, "hunyuan-t1");
+  assert.equal(readJson(join(home, ".workbuddy", "mcp.json")).mcpServers.hotseat.env.HOTSEAT_AGENT, "workbuddy");
+  assert.match(readFileSync(join(home, ".workbuddy", "CODEBUDDY.md"), "utf8"), /Hotseat 共享上下文/);
+  assert.ok(readJson(join(home, ".codebuddy", ".mcp.json")).mcpServers.other);
+  const kimiToml = readFileSync(join(home, ".kimi-code", "config.toml"), "utf8");
+  assert.ok(kimiToml.startsWith(files[".kimi-code/config.toml"]!));
+  assert.match(kimiToml, /\[\[hooks\]\]\nevent = "UserPromptSubmit"\ncommand = ".*hotseat hook kimi prompt"\ntimeout = \d+/);
+  assert.deepEqual(readJson(join(home, ".kimi-code", "mcp.json")).mcpServers.hotseat, { command: bin, args: ["mcp"], env: { HOTSEAT_AGENT: "kimi" } });
+  const gem = readJson(join(home, ".gemini", "settings.json"));
+  assert.ok(gem.mcpServers.github && gem.mcpServers.hotseat);
+  assert.equal(gem.hooks.AfterAgent[0].hooks[0].timeout, 10000); // Gemini CLI 的 timeout 单位是毫秒
+  assert.equal(readJson(join(home, ".copilot", "mcp-config.json")).mcpServers.hotseat.type, "local");
+  assert.deepEqual(readJson(join(home, ".config", "opencode", "opencode.json")).mcp.hotseat.command, [bin, "mcp"]);
+  assert.match(readFileSync(join(home, ".kiro", "steering", "hotseat.md"), "utf8"), /hotseat:begin/);
+  assert.equal(existsSync(join(home, ".trae", "mcp.json")), false); // Trae 只给手动步骤
+
+  const doc = cli(env, ["doctor"]);
+  assert.equal(doc.code, 0, doc.out);
+  assert.doesNotMatch(doc.out, /✗/);
+
+  // Hook：会话开始注入、首条消息注入（只一次）、收工检查
+  execFileSync("git", ["init", "-q", project]);
+  assert.equal(cli(env, ["new", "Login refresh", "--goal", "登录过期后自动刷新"], { cwd: project }).code, 0);
+  const wb = readJson(join(home, ".workbuddy", "settings.json")).hooks;
+  assert.match(JSON.parse(sh(env, wb.SessionStart[0].hooks[0].command, { session_id: "w1", cwd: project, hook_event_name: "SessionStart", source: "startup" }, project)).hookSpecificOutput.additionalContext, /你是 workbuddy。/);
+  const kimiCmd = (event: string) => JSON.parse(new RegExp(`event = "${event}"\\ncommand = (".*")`).exec(kimiToml)![1]!) as string;
+  const k1 = JSON.parse(sh(env, kimiCmd("UserPromptSubmit"), { session_id: "k1", cwd: project, hook_event_name: "UserPromptSubmit", prompt: "继续" }, project));
+  assert.match(k1.message, /^# Hotseat 交接 · Login refresh（login-refresh）\n> 你是 kimi。/);
+  assert.equal(sh(env, kimiCmd("UserPromptSubmit"), { session_id: "k1", cwd: project, hook_event_name: "UserPromptSubmit", prompt: "再改一下" }, project), "");
+  const gemStart = JSON.parse(sh(env, gem.hooks.SessionStart[0].hooks[0].command, { session_id: "g1", cwd: project, hook_event_name: "SessionStart", source: "startup" }, project));
+  assert.equal(gemStart.hookSpecificOutput.hookEventName, "SessionStart");
+  const lingmaHooks = readJson(join(home, ".lingma", "settings.json")).hooks;
+  const lm = JSON.parse(sh(env, lingmaHooks.UserPromptSubmit[0].hooks[0].command, { session_id: "l1", cwd: project, hook_event_name: "UserPromptSubmit", prompt: "继续" }, project));
+  assert.equal(lm.hookSpecificOutput.hookEventName, "UserPromptSubmit");
+  assert.match(lm.hookSpecificOutput.additionalContext, /你是 lingma。/);
+  writeFileSync(join(project, "login.tsx"), "export {}\n");
+  const kimiStop = JSON.parse(sh(env, kimiCmd("Stop"), { session_id: "k1", cwd: project, hook_event_name: "Stop", turn_id: "t1", stop_hook_active: false }, project));
+  assert.equal(kimiStop.hookSpecificOutput.permissionDecision, "deny");
+  assert.match(kimiStop.hookSpecificOutput.permissionDecisionReason, /login\.tsx/);
+  const gemStop = JSON.parse(sh(env, gem.hooks.AfterAgent[0].hooks[0].command, { session_id: "g1", cwd: project, hook_event_name: "AfterAgent", stop_hook_active: false }, project));
+  assert.equal(gemStop.decision, "deny");
+  assert.match(gemStop.reason, /login\.tsx/);
+
+  const un = cli(env, ["uninstall", "--yes"]);
+  assert.equal(un.code, 0, un.out + un.err);
+  for (const [f, text] of Object.entries(files)) assert.equal(readFileSync(join(home, f), "utf8"), text, f);
+  for (const f of [".workbuddy/mcp.json", ".workbuddy/CODEBUDDY.md", ".codebuddy/settings.json", ".codebuddy/CODEBUDDY.md", ".qoder/settings.json", ".qoder/AGENTS.md", ".kimi-code/mcp.json", ".gemini/GEMINI.md", ".copilot/mcp-config.json", ".copilot/copilot-instructions.md", ".codeium/windsurf/mcp_config.json", ".kiro/settings/mcp.json", ".kiro/steering/hotseat.md", ".config/opencode/AGENTS.md"]) {
+    assert.equal(existsSync(join(home, f)), false, f);
+  }
 });
 
 async function mcpClient(env: NodeJS.ProcessEnv, agent: string, cwd: string) {

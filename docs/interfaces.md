@@ -653,7 +653,7 @@ Markdown 文本，标题固定，方便 Agent 和人阅读：
 ```
 
 - `<agent>`：§0.1 中的取值。
-- `<event>`：`session-start`（会话开始）或 `stop`（每轮结束）。V1 只用这两个事件。
+- `<event>`：`session-start`（会话开始）、`prompt`（每条用户消息提交时）或 `stop`（每轮结束）。`prompt` 给会话开始的 Hook 不能注入上下文的工具用（Kimi Code、通义灵码），见 §5.5。
 - **事件名放在命令行参数里**，不依赖各工具在输入里写的事件名。各家字段名不统一（agy 是 `hookEventName` 🟢，Claude 是 `hook_event_name`），有的工具可能不给。
 - 标准输入：工具传来的原始 JSON，最多读 1MB。
 - 标准输出和退出码：按工具的格式输出（§5.4），**退出码永远是 0**。
@@ -729,6 +729,8 @@ type HookDecision =
 2. 在 `sessions` 表登记或更新这个会话：`task`、`cwd`、`started_at`、`window_start = 现在`、`dirty_snapshot = 当前未提交文件的快照`（§5.6）、`blocks = 0`。
 3. 按 §3.1 的规则生成上下文包，更新已读位置。
 4. 按工具格式输出。
+
+**`prompt` 事件（第一条消息注入）**：有的工具不采用会话开始 Hook 的输出（Kimi Code 0.30 本机程序核对：SessionStart 的结果直接丢弃），或者根本没有会话开始事件（通义灵码）。这时在 UserPromptSubmit 上挂 `hotseat hook <agent> prompt`：`sessions` 表里还没有这个会话 → 按上面 1–4 步注入；已经有了 → 放行、什么都不输出。所以同一个会话只在第一条消息时注入一次。
 
 ### 5.6 收工检查的处理（PRD F4）
 
@@ -812,7 +814,23 @@ type HookDecision =
 
 agy 的规则片段单独写成 `~/.gemini/config/rules/hotseat.md`，MCP 条目不带 `type` 字段（和本机已有条目的格式一致 🟢）。
 
-**其他 Claude 族工具**（CodeBuddy、WorkBuddy、Qoder 海外版、Trae、灵码）：结构同 Claude Code，写进各自的 `settings.json`，路径见 PRD §8.1。都标为实验性。
+**第二批工具**（2026-11-24，`src/adapters/more.ts`，由 `src/adapters/generic.ts` 按描述生成，全部标为实验性）：
+
+| 工具 | MCP | 规则 | Hook | 输出格式 |
+|---|---|---|---|---|
+| WorkBuddy | `~/.workbuddy/mcp.json` | `~/.workbuddy/CODEBUDDY.md` | `~/.workbuddy/settings.json`：SessionStart、Stop | Claude |
+| CodeBuddy Code | `~/.codebuddy/.mcp.json` | `~/.codebuddy/CODEBUDDY.md` | `~/.codebuddy/settings.json`：SessionStart、Stop | Claude |
+| Qoder（海外版） | `~/.qoder/settings.json`（`QODER_CONFIG_DIR`） | `~/.qoder/AGENTS.md` | 同 settings.json：SessionStart、Stop | Claude |
+| Kimi Code | `~/.kimi-code/mcp.json`（`KIMI_CODE_HOME`），条目不带 `type` | `~/.kimi-code/AGENTS.md` | `config.toml` 末尾的 `# hotseat:begin … # hotseat:end` 标记块，里面是 `[[hooks]]`：UserPromptSubmit → `prompt`、Stop | 注入 `{"message": …}`；拦截 `{"hookSpecificOutput": {"permissionDecision": "deny", "permissionDecisionReason": …}}`，每轮最多一次 |
+| Gemini CLI | `~/.gemini/settings.json`，条目不带 `type` | `~/.gemini/GEMINI.md` | 同 settings.json：SessionStart、AfterAgent，`timeout` 单位毫秒 | 注入同 Claude；拦截 `{"decision": "deny", "reason": …}` |
+| 通义灵码 | 只能在界面添加（`init` 打印要粘贴的 JSON） | 只能在设置里填（`hotseat rules`） | `~/.lingma/settings.json`：UserPromptSubmit → `prompt`、Stop | Claude（UserPromptSubmit 的 `additionalContext`） |
+| Trae / Trae CN | 只能在界面添加 | 只能在设置里填 | 暂不写（只能在设置界面配置） | — |
+| GitHub Copilot（CLI、App） | `~/.copilot/mcp-config.json`（`type: "local"`、`tools: ["*"]`） | `~/.copilot/copilot-instructions.md` | 暂不写（预览版） | — |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` | `~/.codeium/windsurf/memories/global_rules.md` | — | — |
+| Kiro | `~/.kiro/settings/mcp.json` | `~/.kiro/steering/hotseat.md` | — | — |
+| OpenCode | `~/.config/opencode/opencode.json` 的 `mcp`（`type: "local"`、`command` 是数组、`environment`） | `~/.config/opencode/AGENTS.md` | — | — |
+
+检测只看用户主目录下各工具自己的目录。`~/.gemini` 也是 Antigravity 的目录，所以 Gemini CLI 只按 `settings.json`、`oauth_creds.json`、`google_accounts.json`、`tmp/` 判断。卸载时，Hotseat 新建的文件去掉自己的内容后为空就删除，原有文件逐字节还原。
 
 Codex、Cursor、Qoder CN 在真实工具里实测前，适配器的 `experimental` 也是 `true`，`init` 时显示「实验性」。
 

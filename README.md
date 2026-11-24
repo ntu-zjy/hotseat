@@ -6,14 +6,14 @@
 
 **Switch AI agents mid-task. The next one already knows.**
 
-One command gives Claude Code, Codex, Cursor, Antigravity and other agents a shared, local task context.<br>
+One command gives 17 agents, from Claude Code, Codex, Cursor and Gemini CLI to WorkBuddy, Kimi Code and Qoder, a shared, local task context.<br>
 No more "summarize what you did" and "read the folder first".
 
 English · [简体中文](README.zh-CN.md)
 
-<a href="https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-zh.mp4"><img src="docs/media/hotseat-demo.gif" width="800" alt="Run npx hotseat init, switch from Claude to Antigravity, type “继续” (continue): it picks up exactly where Claude stopped"></a>
+<a href="https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-en.mp4"><img src="docs/media/hotseat-demo-en.gif" width="800" alt="Run npx hotseat init, switch from Claude to Antigravity, type “continue”: it picks up exactly where Claude stopped"></a>
 
-▶ [Watch the full 64-second demo with sound](https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-zh.mp4) · Chinese narration, English version coming
+▶ [Watch the full demo with sound](https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-en.mp4) (78 s) · [中文版](https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-zh.mp4)
 
 </div>
 
@@ -86,11 +86,25 @@ The pack is built per agent, ordered by what matters for the job, and capped (ab
 | Codex (CLI and desktop app) | 🧪 experimental | ✅ | ✅ | ✅ ¹ | ✅ ¹ |
 | Cursor | 🧪 experimental | ✅ | manual ² | ✅ | ✅ |
 | Qoder CN (desktop app and CLI) | 🧪 experimental | ✅ | ✅ | ✅ | ✅ |
-| Trae, WorkBuddy | planned | | | | |
-| Anything that speaks MCP | manual setup | ✅ | your tool's rules file | — | — |
+| Qoder (global) | 🧪 experimental | ✅ | ✅ | ✅ | ✅ |
+| WorkBuddy (Tencent) | 🧪 experimental | ✅ | ✅ | ✅ | ✅ |
+| CodeBuddy Code (Tencent) | 🧪 experimental | ✅ | ✅ | ✅ | ✅ |
+| Kimi Code (Moonshot) | 🧪 experimental | ✅ | ✅ | ✅ ³ | ✅ |
+| Gemini CLI | 🧪 experimental | ✅ | ✅ | ✅ ⁴ | ✅ ⁴ |
+| Tongyi Lingma (Alibaba) | 🧪 experimental | manual ⁵ | manual ² | ✅ ³ | ✅ |
+| Trae / Trae CN (ByteDance) | 🧪 experimental | manual ⁵ | manual ² | via rules | — |
+| GitHub Copilot (CLI and app) | 🧪 experimental | ✅ | ✅ | via rules | — |
+| Windsurf | 🧪 experimental | ✅ | ✅ | via rules | — |
+| Kiro | 🧪 experimental | ✅ | ✅ | via rules | — |
+| OpenCode | 🧪 experimental | ✅ | ✅ | via rules | — |
+| Anything else that speaks MCP | manual setup | ✅ | your tool's rules file | via rules | — |
 
 ¹ Codex runs new hooks only after you trust them: type `/hooks` in Codex.<br>
-² Cursor's user rules live in its settings. Optional: run `hotseat rules` and paste the output into *Settings → Rules → User Rules*.
+² These tools keep user rules in their settings. Run `hotseat rules` and paste the output there.<br>
+³ These tools ignore output from a session-start hook, so the handoff is injected with your first message in each session (once).<br>
+⁴ Gemini CLI: type `/hooks` to check that Hotseat's hooks are enabled.<br>
+⁵ These tools only add MCP servers in their UI; `hotseat init` prints the JSON to paste.<br>
+"Via rules": no hook, so the rules tell the agent to call `hotseat.get_context` itself when a session starts.
 
 Your tool isn't listed? [Open an issue](../../issues). An adapter is one file.
 
