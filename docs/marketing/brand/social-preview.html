@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Hotseat 同桌 · GitHub social preview (1280×640)</title>
+<style>
+  html,body{margin:0;background:#fff}
+  body{width:1280px;height:640px;overflow:hidden;position:relative;
+    font-family:-apple-system,"SF Pro Display","PingFang SC",system-ui,sans-serif;color:#0B0B12;
+    -webkit-font-smoothing:antialiased}
+  /* 四束光：只在图标背后轻轻透一点，整体还是纯白 */
+  .aura{position:absolute;left:96px;top:120px;width:400px;height:400px;filter:blur(90px);opacity:.20}
+  .aura i{position:absolute;width:190px;height:190px;border-radius:50%}
+  .aura i:nth-child(1){left:20px;top:10px;background:#7B4DFF}
+  .aura i:nth-child(2){right:10px;top:20px;background:#2F8CFF}
+  .aura i:nth-child(3){left:10px;bottom:20px;background:#FF3D7F}
+  .aura i:nth-child(4){right:20px;bottom:10px;background:#FFB020}
+  .icon{position:absolute;left:151px;top:175px;width:290px;height:290px;border-radius:65px;overflow:hidden;
+    box-shadow:0 1px 2px rgba(11,11,18,.10),0 12px 28px rgba(11,11,18,.16),0 40px 80px -20px rgba(11,11,18,.28)}
+  .icon img{width:300px;height:300px;margin:-5px;display:block}
+  .copy{position:absolute;left:540px;top:150px;right:80px}
+  .mark{display:flex;align-items:baseline;gap:22px;line-height:1}
+  .mark b{font-size:104px;font-weight:700;letter-spacing:-.045em}
+  .mark span{font-size:84px;font-weight:500;color:#B4B4BE;letter-spacing:.02em;font-family:"PingFang SC",sans-serif}
+  .tag{margin-top:30px;font-size:40px;font-weight:600;letter-spacing:-.02em}
+  .tag-zh{margin-top:10px;font-size:30px;font-weight:500;color:#6B6B76;font-family:"PingFang SC",sans-serif}
+  .cmd{margin-top:38px;display:inline-flex;align-items:center;gap:14px;padding:16px 26px;border-radius:16px;
+    background:#0B0B12;color:#fff;font:500 28px/1 "SF Mono",ui-monospace,Menlo,monospace;
+    box-shadow:0 10px 24px -8px rgba(11,11,18,.35)}
+  .cmd s{text-decoration:none;color:#8A8A96}
+  .cmd em{font-style:normal;width:12px;height:12px;border-radius:50%;
+    background:conic-gradient(#7B4DFF,#2F8CFF,#FF3D7F,#FFB020,#7B4DFF)}
+  .works{position:absolute;left:540px;bottom:64px;font-size:19px;white-space:nowrap;color:#8A8A96;letter-spacing:.01em}
+  .works b{color:#3A3A44;font-weight:600}
+  .bar{position:absolute;left:0;right:0;bottom:0;height:6px;
+    background:linear-gradient(90deg,#7B4DFF 0%,#2F8CFF 30%,#FF3D7F 62%,#FFB020 100%)}
+</style>
+</head>
+<body>
+  <div class="aura"><i></i><i></i><i></i><i></i></div>
+  <div class="icon"><img src="hotseat-icon.svg" alt=""></div>
+  <div class="copy">
+    <div class="mark"><b>hotseat</b><span>同桌</span></div>
+    <div class="tag">Agents change. Context stays.</div>
+    <div class="tag-zh">换 Agent，不断片。</div>
+    <div class="cmd"><em></em><s>$</s>npx hotseat init</div>
+  </div>
+  <div class="works">Works with <b>Claude Code · Antigravity · Codex · Cursor · Qoder</b></div>
+  <div class="bar"></div>
+</body>
+</html>

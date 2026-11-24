@@ -1,0 +1,32 @@
+{
+  "name": "hotseat",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Shared, local context for AI coding agents: hand a task from Claude to Codex, Cursor, Antigravity and others without re-explaining.",
+  "type": "module",
+  "bin": {
+    "hotseat": "dist/hotseat.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p .",
+    "test": "npm run build && node --test \"src/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}
