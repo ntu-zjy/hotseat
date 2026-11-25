@@ -6,7 +6,7 @@
 
 **Switch AI agents mid-task. The next one already knows.**
 
-One command gives 21 agents, from Claude Code, Codex, Cursor, Copilot and Gemini CLI to WorkBuddy, Kimi Code, Qwen Code and Qoder, a shared, local task context.<br>
+One command gives almost every major coding agent, from Claude Code, Codex, Cursor, Copilot and Gemini CLI to WorkBuddy, Kimi Code, Qwen Code and Qoder, a shared, local task context.<br>
 No more "summarize what you did" and "read the folder first".
 
 English · [简体中文](README.zh-CN.md)
@@ -87,6 +87,17 @@ The pack is built per agent, ordered by what matters for the job, and capped (ab
 
 ## Supported tools
 
+<table>
+<tr><td align="center" width="110"><img src="docs/media/agents/claude.png" width="52" height="52" alt=""><br><sub><b>Claude Code</b></sub><br><sub>✅</sub></td><td align="center" width="110"><img src="docs/media/agents/antigravity.png" width="52" height="52" alt=""><br><sub><b>Antigravity</b></sub><br><sub>✅</sub></td><td align="center" width="110"><img src="docs/media/agents/codex.png" width="52" height="52" alt=""><br><sub><b>Codex</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/cursor.png" width="52" height="52" alt=""><br><sub><b>Cursor</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/copilot.png" width="52" height="52" alt=""><br><sub><b>GitHub Copilot</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/gemini.png" width="52" height="52" alt=""><br><sub><b>Gemini CLI</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/windsurf.png" width="52" height="52" alt=""><br><sub><b>Windsurf</b></sub><br><sub>🧪</sub></td></tr>
+<tr><td align="center" width="110"><img src="docs/media/agents/kiro.png" width="52" height="52" alt=""><br><sub><b>Kiro</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/opencode.png" width="52" height="52" alt=""><br><sub><b>OpenCode</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/cline.png" width="52" height="52" alt=""><br><sub><b>Cline</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/kilo.png" width="52" height="52" alt=""><br><sub><b>Kilo Code</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/workbuddy.png" width="52" height="52" alt=""><br><sub><b>WorkBuddy</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/codebuddy.png" width="52" height="52" alt=""><br><sub><b>CodeBuddy</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/kimi.png" width="52" height="52" alt=""><br><sub><b>Kimi Code</b></sub><br><sub>🧪</sub></td></tr>
+<tr><td align="center" width="110"><img src="docs/media/agents/qwen.png" width="52" height="52" alt=""><br><sub><b>Qwen Code</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/qoder-intl.png" width="52" height="52" alt=""><br><sub><b>Qoder</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/qoder-cn.png" width="52" height="52" alt=""><br><sub><b>Qoder CN</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/lingma.png" width="52" height="52" alt=""><br><sub><b>Tongyi Lingma</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/trae.png" width="52" height="52" alt=""><br><sub><b>Trae</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/trae.png" width="52" height="52" alt=""><br><sub><b>Trae CN</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/iflow.png" width="52" height="52" alt=""><br><sub><b>iFlow CLI</b></sub><br><sub>🧪</sub></td></tr>
+</table>
+
+✅ tested · 🧪 experimental: built from each tool's official docs, not yet tested end to end. Names and logos belong to their owners.
+
+<details>
+<summary>What each tool gets (MCP, rules, automatic handoff, stop check)</summary>
+
 | Tool | Status | MCP | Rules | Context on session start | Stop check |
 |---|---|:-:|:-:|:-:|:-:|
 | Claude Code (incl. the Code tab in the Claude desktop app) | ✅ tested | ✅ | ✅ | ✅ | ✅ |
@@ -118,6 +129,8 @@ The pack is built per agent, ordered by what matters for the job, and capped (ab
 ⁵ These tools only add MCP servers in their UI; `hotseat init` prints the JSON to paste.<br>
 ⁶ If `~/.config/kilo/kilo.jsonc` has comments, Hotseat leaves it alone and prints the snippet to paste.<br>
 "Via rules": no hook, so the rules tell the agent to call `hotseat.get_context` itself when a session starts.
+
+</details>
 
 Your tool isn't listed? [Open an issue](../../issues). An adapter is one file.
 

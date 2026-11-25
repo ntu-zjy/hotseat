@@ -6,7 +6,7 @@
 
 **换个 AI Agent 接着干，它已经什么都知道了。**
 
-一条命令，让 Claude Code、Codex、Cursor、WorkBuddy、Kimi Code、Qwen Code、Qoder、通义灵码等 21 个 Agent 共用同一份本地任务上下文。<br>
+一条命令，让 Claude Code、Codex、Cursor、WorkBuddy、Kimi Code、Qwen Code、Qoder、通义灵码等国内外主流 Agent 共用同一份本地任务上下文。<br>
 不用再说「总结一下」，也不用再说「先读一下文件夹」。
 
 [English](README.md) · 简体中文
@@ -85,6 +85,17 @@ npx hotseat init
 
 ## 支持的工具
 
+<table>
+<tr><td align="center" width="110"><img src="docs/media/agents/claude.png" width="52" height="52" alt=""><br><sub><b>Claude Code</b></sub><br><sub>✅</sub></td><td align="center" width="110"><img src="docs/media/agents/antigravity.png" width="52" height="52" alt=""><br><sub><b>Antigravity</b></sub><br><sub>✅</sub></td><td align="center" width="110"><img src="docs/media/agents/codex.png" width="52" height="52" alt=""><br><sub><b>Codex</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/cursor.png" width="52" height="52" alt=""><br><sub><b>Cursor</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/copilot.png" width="52" height="52" alt=""><br><sub><b>GitHub Copilot</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/gemini.png" width="52" height="52" alt=""><br><sub><b>Gemini CLI</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/windsurf.png" width="52" height="52" alt=""><br><sub><b>Windsurf</b></sub><br><sub>🧪</sub></td></tr>
+<tr><td align="center" width="110"><img src="docs/media/agents/kiro.png" width="52" height="52" alt=""><br><sub><b>Kiro</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/opencode.png" width="52" height="52" alt=""><br><sub><b>OpenCode</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/cline.png" width="52" height="52" alt=""><br><sub><b>Cline</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/kilo.png" width="52" height="52" alt=""><br><sub><b>Kilo Code</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/workbuddy.png" width="52" height="52" alt=""><br><sub><b>WorkBuddy</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/codebuddy.png" width="52" height="52" alt=""><br><sub><b>CodeBuddy</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/kimi.png" width="52" height="52" alt=""><br><sub><b>Kimi Code</b></sub><br><sub>🧪</sub></td></tr>
+<tr><td align="center" width="110"><img src="docs/media/agents/qwen.png" width="52" height="52" alt=""><br><sub><b>Qwen Code</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/qoder-intl.png" width="52" height="52" alt=""><br><sub><b>Qoder</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/qoder-cn.png" width="52" height="52" alt=""><br><sub><b>Qoder CN</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/lingma.png" width="52" height="52" alt=""><br><sub><b>通义灵码</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/trae.png" width="52" height="52" alt=""><br><sub><b>Trae</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/trae.png" width="52" height="52" alt=""><br><sub><b>Trae CN</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/iflow.png" width="52" height="52" alt=""><br><sub><b>iFlow CLI</b></sub><br><sub>🧪</sub></td></tr>
+</table>
+
+✅ 已实测 · 🧪 实验性：按各工具官方文档实现，还没在真实工具里完整测过。各产品名称和图标归其所有者。
+
+<details>
+<summary>每个工具具体接入了什么（MCP、规则、自动注入、收工检查）</summary>
+
 | 工具 | 状态 | MCP | 规则 | 会话开始自动注入 | 收工检查 |
 |---|---|:-:|:-:|:-:|:-:|
 | Claude Code（含 Claude 桌面 App 的 Code 标签页） | ✅ 已实测 | ✅ | ✅ | ✅ | ✅ |
@@ -116,6 +127,8 @@ npx hotseat init
 ⁵ 这些工具只能在界面里添加 MCP 服务，`hotseat init` 会打印要粘贴的 JSON。<br>
 ⁶ `~/.config/kilo/kilo.jsonc` 里有注释时，Hotseat 不改它，会打印要粘贴的片段。<br>
 「靠规则」：没有 Hook，由规则让 Agent 在会话开始时自己调用 `hotseat.get_context`。
+
+</details>
 
 没有你用的工具？[提个 issue](../../issues)。一个适配器就是一个文件。
 
