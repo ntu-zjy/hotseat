@@ -23,6 +23,8 @@ function log(env: Env, line: string): void {
   }
 }
 
+const isCursorInput = (raw: unknown): boolean => typeof raw === "object" && raw !== null && "cursor_version" in raw;
+
 export async function runHook(agentArg: string, eventArg: string, stdin: string, env: Env): Promise<HookOutput> {
   const agent = AgentId.safeParse(agentArg).data;
   const event = HookEvent.safeParse(eventArg).data;
@@ -35,6 +37,9 @@ export async function runHook(agentArg: string, eventArg: string, stdin: string,
 
   const work = async (): Promise<HookDecision> => {
     const raw: unknown = stdin.trim() ? JSON.parse(stdin) : {};
+    // Cursor 也会执行 ~/.claude/settings.json 里的 Hook，传的是它自己的输入（带 cursor_version）。
+    // Cursor 自己那套 Hook 已经注入过了，这里放行、不登记会话，免得交接注入两遍、会话被记成 claude。
+    if (agent !== "cursor" && isCursorInput(raw)) return failOpen;
     const input = normalizeHookInput(agent, event, raw, env);
     const svc = Hotseat.open({ home: hotseatHome(env), env });
     try {

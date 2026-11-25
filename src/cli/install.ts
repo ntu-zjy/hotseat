@@ -38,10 +38,11 @@ export function defaultLang(env: Env): Lang {
   return /^zh/i.test(loc ?? "") ? "zh" : "en";
 }
 
-export function pickAdapters(only: string[] | null): Adapter[] {
+export function pickAdapters(only: string[] | null, lang: Lang = "zh"): Adapter[] {
   if (!only) return [...ADAPTERS];
   const unknown = only.filter((id) => !ADAPTERS.some((a) => a.id === id));
-  if (unknown.length) throw new Error(`不认识的工具：${unknown.join(", ")}。目前支持：${ADAPTERS.map((a) => a.id).join(", ")}`);
+  const ids = ADAPTERS.map((a) => a.id).join(", ");
+  if (unknown.length) throw new Error(lang === "en" ? `Unknown tool: ${unknown.join(", ")}. Supported: ${ids}` : `不认识的工具：${unknown.join(", ")}。目前支持：${ids}`);
   return ADAPTERS.filter((a) => only.includes(a.id));
 }
 
@@ -122,15 +123,16 @@ export function recordUninstall(hs: string, agents: AgentId[]): void {
 
 export async function runtimeChecks(ctx: AdapterContext): Promise<DoctorCheck[]> {
   const shim = readTextOrNull(ctx.bin);
-  if (!shim) return [{ agent: "human", part: "runtime", ok: false, message: `${ctx.bin} 不存在`, fix: "npx hotseat init" }];
+  const en = ctx.lang === "en";
+  if (!shim) return [{ agent: "human", part: "runtime", ok: false, message: en ? `${ctx.bin} doesn't exist` : `${ctx.bin} 不存在`, fix: "npx hotseat init" }];
   const node = /exec '([^']+)'/.exec(shim)?.[1];
   const lib = join(homePath(ctx.hotseatHome, "lib"), "hotseat.mjs");
   return [
     node && existsSync(node)
-      ? { agent: "human", part: "runtime", ok: true, message: `Node：${node}` }
-      : { agent: "human", part: "runtime", ok: false, message: `启动脚本里的 Node（${node ?? "?"}）不存在了`, fix: "npx hotseat init" },
+      ? { agent: "human", part: "runtime", ok: true, message: en ? `Node: ${node}` : `Node：${node}` }
+      : { agent: "human", part: "runtime", ok: false, message: en ? `The Node in the launcher (${node ?? "?"}) is gone` : `启动脚本里的 Node（${node ?? "?"}）不存在了`, fix: "npx hotseat init" },
     existsSync(lib)
-      ? { agent: "human", part: "runtime", ok: true, message: `程序：${lib}` }
-      : { agent: "human", part: "runtime", ok: false, message: `${lib} 不存在`, fix: "npx hotseat init" },
+      ? { agent: "human", part: "runtime", ok: true, message: en ? `Program: ${lib}` : `程序：${lib}` }
+      : { agent: "human", part: "runtime", ok: false, message: en ? `${lib} doesn't exist` : `${lib} 不存在`, fix: "npx hotseat init" },
   ];
 }

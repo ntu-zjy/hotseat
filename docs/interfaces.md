@@ -84,7 +84,8 @@
 
 - `lang`：`zh` 或 `en`，决定规则片段、上下文包标题、收工检查提示用哪种语言。`init` 时按环境变量 `LC_ALL` / `LC_MESSAGES` / `LANG` 取默认值，可以用 `--lang zh` 指定。
 - `agents.<id>.stopCheck`：按工具关闭收工检查（PRD F4）。
-- `agents.<id>.parts`：这个工具实际接入了哪几部分，`doctor` 和 `uninstall` 按它检查。
+- `agents.<id>.parts`：这个工具实际接入了哪几部分，`doctor` 和 `uninstall` 按它检查。`doctor` 只检查 `agents` 里启用的工具；装了但没接入的只提示一句，不算失败。
+- `agents` 的键按普通字符串读，不限定在 §0.1 的取值里：新版加了工具写进来，升级时还开着的会话用的是旧版 MCP 服务，也要能读这份配置。
 - `pack`（可选）：`{ "defaultBudget": 5000, "maxBudget": 8000 }`，上下文包的默认预算和上限（§3.3），只在想改的时候才写，可以只写其中一项。
 - `init` / `uninstall` 只改 `lang` 和 `agents`，其他字段原样写回；缺省值不写进文件，这样以后改缺省值，已经装过的人也能用上。
 
@@ -659,6 +660,7 @@ Markdown 文本，标题固定，方便 Agent 和人阅读：
 - 标准输出和退出码：按工具的格式输出（§5.4），**退出码永远是 0**。
 - **出错一律放行（fail-open）**：解析失败、任务找不到、数据库被锁住、超过 1.5 秒的内部时间预算，一律不注入、不拦截，错误写进 `logs/hook.log`。Hotseat 出问题，绝不能让用户的 Agent 卡住。
 - 各工具配置里的超时统一写 10 秒，作为兜底。
+- Cursor 也会执行 `~/.claude/settings.json` 里的 Hook（日志里叫 claude-user config），输入是 Cursor 自己的格式，带 `cursor_version`。`<agent>` 不是 `cursor` 却收到这种输入时直接放行、不登记会话，否则 Cursor 会拿到两份交接，会话也会被记成 claude（2026-11-25 用 Cursor 3.22 实测）。
 
 ### 5.2 统一输入 `HookInput`
 
@@ -852,11 +854,12 @@ Codex、Cursor、Qoder CN 在真实工具里实测前，适配器的 `experiment
 interface Adapter {
   id: AgentId;
   displayName: string;
+  displayNameEn?: string;             // 英文界面用的名字（例如通义灵码 → Tongyi Lingma），不填就用 displayName
   tier: "A" | "B" | "C";              // PRD §8.1 的接入等级
   experimental: boolean;              // 未实测的标为 true，init 时提示
   hookFamily: "claude" | "cursor" | "agy" | null;
   maxContextChars: number;            // 会话开始注入的字符上限
-  afterInstall?: string[];            // 写入后还要用户自己做的事（如 Codex 的 /hooks 信任），列在 init 的「下一步」里
+  afterInstall?: Text[];              // 写入后还要用户自己做的事（如 Codex 的 /hooks 信任），列在 init 的「下一步」里；Text 是 { zh, en } 两份文字
 
   detect(ctx): Promise<Detection>;                     // 是否安装、配置文件在哪
   planInstall(ctx, opts): Promise<PlannedChange[]>;    // 只算出改动，不写盘

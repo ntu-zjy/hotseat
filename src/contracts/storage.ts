@@ -72,7 +72,8 @@ export const Config = z.looseObject({
     .default({ defaultBudget: 5000, maxBudget: 8000 }),
   secretScan: z.boolean().default(true),
   updateCheck: z.boolean().default(true),
-  agents: z.partialRecord(AgentId, AgentConfig).default({}),
+  // 键用 string 而不是 AgentId：新版加了工具后写进来的键，旧版（还开着的会话）也要能读，不能整份配置报错
+  agents: z.record(z.string(), AgentConfig).default({}),
 });
 export type Config = z.infer<typeof Config>;
 

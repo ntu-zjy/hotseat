@@ -8,7 +8,7 @@ import type { Adapter, AdapterContext, DoctorCheck, PlannedChange } from "../con
 import { OWNERSHIP, hookCommand } from "../contracts/adapter.ts";
 import { HOOK_LIMITS } from "../contracts/hooks.ts";
 import { normalizeHookInput, renderHookOutput } from "../hooks/normalize.ts";
-import { emptyToNull, hasFlatHook, isObj, jsonText, mergeFlatHooks, readJsonFile, setEntry, stripFlatHooks } from "./shared.ts";
+import { emptyToNull, hasFlatHook, isObj, jsonText, mergeFlatHooks, readJsonFile, say, setEntry, stripFlatHooks, text } from "./shared.ts";
 
 const EVENTS = { sessionStart: "session-start", stop: "stop" } as const;
 
@@ -25,10 +25,10 @@ export const cursorAdapter: Adapter = {
   id: "cursor",
   displayName: "Cursor",
   tier: "A",
-  experimental: true,
+  experimental: false,
   hookFamily: "cursor",
   maxContextChars: 9500,
-  afterInstall: ["（可选）运行 hotseat rules，把输出粘贴到 Cursor 设置 → Rules → User Rules；Cursor 的用户级规则只能在设置里填"],
+  afterInstall: [text("（可选）运行 hotseat rules，把输出粘贴到 Cursor 设置 → Rules → User Rules；Cursor 的用户级规则只能在设置里填", "(Optional) Run hotseat rules and paste the output into Cursor Settings → Rules → User Rules; Cursor's user rules can only be set there")],
 
   async detect(ctx) {
     const f = files(ctx);
@@ -39,21 +39,21 @@ export const cursorAdapter: Adapter = {
     const f = files(ctx);
     const out: PlannedChange[] = [];
     if (opts.parts.includes("mcp")) {
-      const { text, data } = readJsonFile(f.mcp);
+      const { text, data } = readJsonFile(f.mcp, ctx.lang);
       const entry = mcpEntry(ctx.bin);
       out.push({
         agent: "cursor",
         part: "mcp",
         file: f.mcp,
         kind: "json-merge",
-        summary: "添加用户级 MCP 服务 hotseat",
+        summary: say(ctx.lang).addUserMcp,
         before: text,
         after: jsonText(setEntry(data, "mcpServers", OWNERSHIP.mcpKey, entry), text),
         preview: JSON.stringify({ mcpServers: { [OWNERSHIP.mcpKey]: entry } }, null, 2),
       });
     }
     if (opts.parts.includes("hooks")) {
-      const { text, data } = readJsonFile(f.hooks);
+      const { text, data } = readJsonFile(f.hooks, ctx.lang);
       const timeout = HOOK_LIMITS.configTimeoutSec;
       const commands = Object.fromEntries(Object.entries(EVENTS).map(([e, ev]) => [e, hookCommand(ctx.bin, "cursor", ev)]));
       // loop_limit 1：Cursor 自带的防循环，同一轮最多自动追问一次
@@ -66,7 +66,7 @@ export const cursorAdapter: Adapter = {
         part: "hooks",
         file: f.hooks,
         kind: "json-merge",
-        summary: "添加 sessionStart（自动注入上下文）和 stop（收工检查）两个 Hook",
+        summary: say(ctx.lang).addHooks(Object.keys(EVENTS)),
         before: text,
         after: jsonText(merged, text),
         preview: Object.entries(commands).map(([e, c]) => `${e}: ${c}`).join("\n"),
@@ -78,15 +78,15 @@ export const cursorAdapter: Adapter = {
   async planUninstall(ctx) {
     const f = files(ctx);
     const out: PlannedChange[] = [];
-    const mcp = readJsonFile(f.mcp);
+    const mcp = readJsonFile(f.mcp, ctx.lang);
     if (isObj(mcp.data.mcpServers) && OWNERSHIP.mcpKey in mcp.data.mcpServers) {
-      out.push({ agent: "cursor", part: "mcp", file: f.mcp, kind: "json-merge", summary: "移除 MCP 服务 hotseat", before: mcp.text, after: jsonText(setEntry(mcp.data, "mcpServers", OWNERSHIP.mcpKey, undefined), mcp.text) });
+      out.push({ agent: "cursor", part: "mcp", file: f.mcp, kind: "json-merge", summary: say(ctx.lang).removeMcp, before: mcp.text, after: jsonText(setEntry(mcp.data, "mcpServers", OWNERSHIP.mcpKey, undefined), mcp.text) });
     }
-    const hooks = readJsonFile(f.hooks);
+    const hooks = readJsonFile(f.hooks, ctx.lang);
     const stripped = stripFlatHooks(hooks.data);
     if (JSON.stringify(stripped) !== JSON.stringify(hooks.data)) {
       const kept = emptyToNull(stripped, ["version"]);
-      out.push({ agent: "cursor", part: "hooks", file: f.hooks, kind: "json-merge", summary: "移除 Hotseat 的 Hook", before: hooks.text, after: kept ? jsonText(kept, hooks.text) : null });
+      out.push({ agent: "cursor", part: "hooks", file: f.hooks, kind: "json-merge", summary: say(ctx.lang).removeHooks, before: hooks.text, after: kept ? jsonText(kept, hooks.text) : null });
     }
     return out;
   },
@@ -97,7 +97,7 @@ export const cursorAdapter: Adapter = {
     const checks: DoctorCheck[] = [];
     const entry = (() => {
       try {
-        const servers = readJsonFile(f.mcp).data.mcpServers;
+        const servers = readJsonFile(f.mcp, ctx.lang).data.mcpServers;
         return isObj(servers) && isObj(servers[OWNERSHIP.mcpKey]) ? (servers[OWNERSHIP.mcpKey] as Record<string, unknown>) : null;
       } catch {
         return null;
@@ -105,25 +105,25 @@ export const cursorAdapter: Adapter = {
     })();
     checks.push(
       !entry
-        ? { agent: "cursor", part: "mcp", ok: false, message: `${f.mcp} 里没有 hotseat MCP 服务`, fix }
+        ? { agent: "cursor", part: "mcp", ok: false, message: say(ctx.lang).mcpMissing(f.mcp), fix }
         : entry.command !== ctx.bin
-          ? { agent: "cursor", part: "mcp", ok: false, message: `MCP 服务指向 ${String(entry.command)}，不是 ${ctx.bin}`, fix }
-          : { agent: "cursor", part: "mcp", ok: true, message: "MCP 服务已配置" },
+          ? { agent: "cursor", part: "mcp", ok: false, message: say(ctx.lang).mcpElsewhere(String(entry.command), ctx.bin), fix }
+          : { agent: "cursor", part: "mcp", ok: true, message: say(ctx.lang).mcpOk },
     );
     let hooks: Record<string, unknown> = {};
     try {
-      hooks = readJsonFile(f.hooks).data;
+      hooks = readJsonFile(f.hooks, ctx.lang).data;
     } catch (e) {
       checks.push({ agent: "cursor", part: "hooks", ok: false, message: (e as Error).message });
     }
     if (Object.keys(hooks).length > 0 && hooks.version !== 1) {
-      checks.push({ agent: "cursor", part: "hooks", ok: false, message: `${f.hooks} 缺少 "version": 1，Cursor 可能不认`, fix });
+      checks.push({ agent: "cursor", part: "hooks", ok: false, message: ctx.lang === "en" ? `${f.hooks} is missing "version": 1, so Cursor may ignore it` : `${f.hooks} 缺少 "version": 1，Cursor 可能不认`, fix });
     }
     for (const event of Object.keys(EVENTS)) {
       checks.push(
         hasFlatHook(hooks, event)
-          ? { agent: "cursor", part: "hooks", ok: true, message: `${event} Hook 已配置` }
-          : { agent: "cursor", part: "hooks", ok: false, message: `${f.hooks} 里没有 ${event} Hook`, fix },
+          ? { agent: "cursor", part: "hooks", ok: true, message: say(ctx.lang).hookOk(event) }
+          : { agent: "cursor", part: "hooks", ok: false, message: say(ctx.lang).hookMissing(f.hooks, event), fix },
       );
     }
     return checks;

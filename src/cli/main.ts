@@ -4,8 +4,8 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
-import type { PlannedChange } from "../contracts/adapter.ts";
-import type { InstallPart } from "../contracts/common.ts";
+import type { Adapter, PlannedChange } from "../contracts/adapter.ts";
+import type { InstallPart, Lang } from "../contracts/common.ts";
 import { HotseatError } from "../contracts/errors.ts";
 import { Scene } from "../contracts/common.ts";
 import { applyMemoryEdits } from "../core/memory.ts";
@@ -30,7 +30,8 @@ import {
   runtimeChecks,
 } from "./install.ts";
 
-const HELP = `Hotseat ${VERSION} — 多个 AI Agent 轮流接手同一个任务，上下文不丢。
+const HELP: Record<Lang, string> = {
+  zh: `Hotseat ${VERSION} — 多个 AI Agent 轮流接手同一个任务，上下文不丢。
 
 用法：hotseat <命令> [参数]
 
@@ -58,7 +59,38 @@ const HELP = `Hotseat ${VERSION} — 多个 AI Agent 轮流接手同一个任务
 内部（由各工具调用）
   mcp                    启动 MCP 服务（stdio）
   hook <agent> <event>   处理 Hook：event 为 session-start、prompt 或 stop
-`;
+`,
+  en: `Hotseat ${VERSION} — hand one task between AI agents without losing context.
+
+Usage: hotseat <command> [options]
+
+Setup
+  init [--only claude,agy] [--dry-run] [--yes] [--no-hooks] [--lang zh|en]
+                         Detect the AI tools on this machine and add Hotseat's MCP server, rules and hooks
+                         (shows the changes and makes backups first)
+                         Supported: claude, agy, codex, cursor, qoder-cn, qoder, workbuddy, codebuddy, kimi,
+                         lingma, trae, trae-cn, gemini, copilot, windsurf, kiro, opencode, qwen, iflow,
+                         cline, kilo
+  doctor                 Check that every connected tool is still set up
+  uninstall [--yes]      Remove everything Hotseat wrote, found by its markers (task data stays)
+  rules                  Print the rules, for tools whose rules can only be pasted in settings (Cursor, Trae, Lingma)
+
+Tasks
+  new <name> [--path <dir>] [--goal <goal>]   Create a task; binds the current folder by default
+  link <dir> [--task <slug>]                  Bind a folder to a task
+  list [--all]                                List tasks
+  context [--scene code|research|review|plan] Show the context pack for the current folder
+  review [--task <slug>]                      Accept or reject memory and plan edits proposed by agents
+  blame <keyword> [--task <slug>] [--all]     Find which agent wrote a decision or constraint, and when
+
+Settings
+  Turn off the stop check for one tool: set agents.<tool>.stopCheck to false in ~/Hotseat/.hotseat/config.json
+
+Internal (called by the tools)
+  mcp                    Start the MCP server (stdio)
+  hook <agent> <event>   Handle a hook; event is session-start, prompt or stop
+`,
+};
 
 interface Parsed {
   _: string[];
@@ -100,10 +132,10 @@ async function ask(question: string): Promise<string> {
   }
 }
 
-async function confirm(flags: Parsed["flags"], question: string): Promise<boolean> {
+async function confirm(flags: Parsed["flags"], question: string, lang: Lang): Promise<boolean> {
   if (flags.yes) return true;
   if (!process.stdin.isTTY) {
-    console.error("当前不是交互式终端。确认无误后加 --yes 再运行。");
+    console.error(lang === "en" ? "Not an interactive terminal. Once you've checked the changes, run again with --yes." : "当前不是交互式终端。确认无误后加 --yes 再运行。");
     return false;
   }
   return ["y", "yes", "是"].includes(await ask(`${question} (y/N) `));
@@ -140,13 +172,23 @@ function bundlePath(): string {
   return dist;
 }
 
-function printChanges(changes: readonly PlannedChange[]): void {
+function printChanges(changes: readonly PlannedChange[], lang: Lang): void {
   for (const c of changes) {
     console.log(`\n${bold(`[${c.agent}]`)} ${tilde(c.file)} ${dim(`— ${c.summary}`)}`);
     if (c.preview) for (const line of c.preview.split("\n")) console.log(green(`  + ${line}`));
-    if (c.after === null) console.log(red("  （删除这个文件）"));
+    // 手动步骤（只能在界面里添加的 MCP、只能在设置里填的规则）不写文件，after 也是 null，不是删除
+    if (c.kind === "manual") for (const step of c.manualSteps ?? []) console.log(`  → ${step}`);
+    else if (c.after === null) console.log(red(lang === "en" ? "  (this file will be deleted)" : "  （删除这个文件）"));
   }
 }
+
+/** 界面语言：装过就用 config.json 里的，没装过看系统语言 */
+function uiLang(env: Env): Lang {
+  const hs = hotseatHome(env);
+  return existsSync(join(hs, ".hotseat", "config.json")) ? loadConfig(hs).lang : defaultLang(env);
+}
+
+const nameOf = (a: Adapter | undefined, id: string, lang: Lang) => (a ? (lang === "en" ? (a.displayNameEn ?? a.displayName) : a.displayName) : id);
 
 function cwdOrNull(): string | null {
   const cwd = process.cwd();
@@ -171,7 +213,7 @@ const INIT_TEXT = {
     updated: (v: string) => `\n✓ 程序已更新到 ${v}，各工具的配置没有改动。`,
     updatedNote: "新开的 Agent 会话会用上新版；正在运行的会话要重开后才会用上新的 MCP 服务。",
     wrote: (n: number, b: string) => `\n✓ 已写入 ${n} 个文件${n ? `，备份在 ${b}` : ""}`,
-    restart: (names: string[]) => `重启${names.join("、")}，让新配置生效。`,
+    restart: (names: string[]) => `重启 ${names.join("、")}，让新配置生效。`,
     newTaskCmd: 'hotseat new "任务名"',
     newTask: (cmd: string) => `在项目目录运行 ${cmd}，或者直接让 Agent 帮你建任务。`,
     review: (cmd: string) => `之后在这个目录里开新会话，Agent 会自动拿到上下文；Agent 提交的 memory 修改用 ${cmd} 确认。`,
@@ -181,7 +223,7 @@ const INIT_TEXT = {
     installAt: (bin: string) => `The program is installed at ${bin}; every tool's config points there.\n`,
     notDetected: (name: string) => `- ${name}: not detected, skipped`,
     detected: (name: string, exp: boolean) => `- ${name}: detected${exp ? " (experimental)" : ""}`,
-    notes: (n: string[]) => `, ${n.join("; ")}`,
+    notes: (n: string[]) => ` — ${n.join("; ")}`,
     noneDetected: (names: string[]) => `\nNo supported tools detected. Supported: ${names.join(", ")}.`,
     upToDate: "\nEvery tool is already up to date.",
     filesToChange: "\nFiles to change (only Hotseat's parts are shown; everything else stays as is):",
@@ -214,30 +256,30 @@ async function init(p: Parsed, env: Env): Promise<number> {
   console.log(M.installAt(tilde(ctx.bin)));
   const changes: PlannedChange[] = [];
   const targets: { agent: PlannedChange["agent"]; parts: InstallPart[] }[] = [];
-  for (const adapter of pickAdapters(only)) {
+  for (const adapter of pickAdapters(only, lang)) {
     const d = await adapter.detect(ctx);
     if (!d.installed) {
-      console.log(dim(M.notDetected(adapter.displayName)));
+      console.log(dim(M.notDetected(nameOf(adapter, adapter.id, lang))));
       continue;
     }
-    console.log(`${M.detected(adapter.displayName, adapter.experimental)}${d.notes.length ? dim(M.notes(d.notes)) : ""}`);
+    console.log(`${M.detected(nameOf(adapter, adapter.id, lang), adapter.experimental)}${d.notes.length ? dim(M.notes(d.notes)) : ""}`);
     changes.push(...(await adapter.planInstall(ctx, { parts, projectRulesDir: null })));
     targets.push({ agent: adapter.id, parts });
   }
   if (targets.length === 0) {
-    console.log(M.noneDetected(pickAdapters(null).map((a) => a.displayName)));
+    console.log(M.noneDetected(pickAdapters(null).map((a) => nameOf(a, a.id, lang))));
     return 1;
   }
   if (changes.length === 0) console.log(green(M.upToDate));
   else {
     console.log(bold(M.filesToChange));
-    printChanges(changes);
+    printChanges(changes, lang);
   }
   if (p.flags["dry-run"]) {
     console.log(dim(M.dryRun));
     return 0;
   }
-  if (changes.length > 0 && !(await confirm(p.flags, M.confirm))) {
+  if (changes.length > 0 && !(await confirm(p.flags, M.confirm, lang))) {
     console.log(M.cancelled);
     return 1;
   }
@@ -255,8 +297,8 @@ async function init(p: Parsed, env: Env): Promise<number> {
   }
   console.log(green(M.wrote(written.length, tilde(backup))));
   const steps = [
-    M.restart(targets.map((t) => adapterFor(t.agent)?.displayName ?? t.agent)),
-    ...targets.flatMap((t) => adapterFor(t.agent)?.afterInstall ?? []),
+    M.restart(targets.map((t) => nameOf(adapterFor(t.agent), t.agent, lang))),
+    ...targets.flatMap((t) => (adapterFor(t.agent)?.afterInstall ?? []).map((x) => x[lang])),
     M.newTask(bold(M.newTaskCmd)),
     M.review(bold("hotseat review")),
   ];
@@ -266,35 +308,47 @@ async function init(p: Parsed, env: Env): Promise<number> {
 
 async function uninstall(p: Parsed, env: Env): Promise<number> {
   const hs = hotseatHome(env);
-  const ctx = adapterContext(env, existsSync(join(hs, ".hotseat", "config.json")) ? loadConfig(hs).lang : defaultLang(env));
+  const lang = uiLang(env);
+  const en = lang === "en";
+  const ctx = adapterContext(env, lang);
   const adapters = pickAdapters(null);
   const changes = (await Promise.all(adapters.map((a) => a.planUninstall(ctx)))).flat();
   if (changes.length === 0) {
-    console.log("没有找到 Hotseat 写入的配置。");
+    console.log(en ? "Found nothing written by Hotseat." : "没有找到 Hotseat 写入的配置。");
     return 0;
   }
-  console.log(bold("将要移除 Hotseat 写入的内容："));
+  console.log(bold(en ? "Hotseat will remove:" : "将要移除 Hotseat 写入的内容："));
   for (const c of changes) console.log(`- [${c.agent}] ${tilde(c.file)} ${dim(`— ${c.summary}`)}`);
-  console.log(dim(`\n任务数据（${tilde(hs)}/tasks）会保留。`));
-  if (!(await confirm(p.flags, "\n确认移除？修改前会自动备份。"))) return 1;
+  console.log(dim(en ? `\nTask data (${tilde(hs)}/tasks) stays.` : `\n任务数据（${tilde(hs)}/tasks）会保留。`));
+  if (!(await confirm(p.flags, en ? "\nRemove these? Backups are made first." : "\n确认移除？修改前会自动备份。", lang))) return 1;
   const backup = backupDir(ctx);
   const { written, skipped } = applyChanges(changes, backup);
   recordUninstall(hs, adapters.map((a) => a.id));
-  console.log(green(`✓ 已修改 ${written.length} 个文件，备份在 ${tilde(backup)}`));
-  for (const s of skipped) console.log(red(`✗ ${tilde(s.file)} 在确认期间被改动，已跳过，请重新运行。`));
+  console.log(green(en ? `✓ Changed ${written.length} files, backups in ${tilde(backup)}` : `✓ 已修改 ${written.length} 个文件，备份在 ${tilde(backup)}`));
+  for (const s of skipped) console.log(red(en ? `✗ ${tilde(s.file)} changed while you were confirming, so it was skipped. Run again.` : `✗ ${tilde(s.file)} 在确认期间被改动，已跳过，请重新运行。`));
   return skipped.length > 0 ? 1 : 0;
 }
 
 async function doctor(env: Env): Promise<number> {
   const hs = hotseatHome(env);
   const config = loadConfig(hs);
-  const ctx = adapterContext(env, config.lang);
+  const lang = config.lang;
+  const ctx = adapterContext(env, lang);
   const checks = await runtimeChecks(ctx);
+  // 只检查用 hotseat init 接入过的工具；装了但没接入的只提示一句，不算失败
+  const unconnected: Adapter[] = [];
   for (const a of pickAdapters(null)) {
-    if (config.agents[a.id] || (await a.detect(ctx)).installed) checks.push(...(await a.doctor(ctx)));
+    if (config.agents[a.id]?.enabled) checks.push(...(await a.doctor(ctx)));
+    else if ((await a.detect(ctx)).installed) unconnected.push(a);
   }
+  const fixLabel = lang === "en" ? "fix:" : "修复：";
   for (const c of checks) {
-    console.log(`${c.ok ? green("✓") : red("✗")} ${c.agent === "human" ? "" : `[${c.agent}] `}${c.message}${!c.ok && c.fix ? dim(`  → 修复：${c.fix}`) : ""}`);
+    console.log(`${c.ok ? green("✓") : red("✗")} ${c.agent === "human" ? "" : `[${c.agent}] `}${c.message}${!c.ok && c.fix ? dim(`  → ${fixLabel} ${c.fix}`) : ""}`);
+  }
+  if (unconnected.length > 0) {
+    const names = unconnected.map((a) => nameOf(a, a.id, lang));
+    const cmd = `hotseat init --only ${unconnected.map((a) => a.id).join(",")}`;
+    console.log(dim(lang === "en" ? `\nAlso found, not connected: ${names.join(", ")}. To connect them: ${cmd}` : `\n还检测到这些工具，但没有接入：${names.join("、")}。要接入就运行 ${cmd}`));
   }
   return checks.every((c) => c.ok) ? 0 : 1;
 }
@@ -365,7 +419,7 @@ export async function main(argv: string[], env: Env = process.env): Promise<numb
     return 0;
   }
   if (!cmd || p.flags.help || cmd === "help") {
-    console.log(HELP);
+    console.log(HELP[uiLang(env)]);
     return 0;
   }
   switch (cmd) {
@@ -381,8 +435,7 @@ export async function main(argv: string[], env: Env = process.env): Promise<numb
     case "doctor":
       return doctor(env);
     case "rules": {
-      const hs = hotseatHome(env);
-      console.log(rulesText(existsSync(join(hs, ".hotseat", "config.json")) ? loadConfig(hs).lang : defaultLang(env), false));
+      console.log(rulesText(uiLang(env), false));
       return 0;
     }
     case "new":
@@ -432,8 +485,8 @@ export async function main(argv: string[], env: Env = process.env): Promise<numb
         return r.data.memory.length + r.data.events.length > 0 ? 0 : 1;
       });
     default:
-      console.error(`不认识的命令：${cmd}\n`);
-      console.log(HELP);
+      console.error(uiLang(env) === "en" ? `Unknown command: ${cmd}\n` : `不认识的命令：${cmd}\n`);
+      console.log(HELP[uiLang(env)]);
       return 1;
   }
 }

@@ -4,6 +4,9 @@ import type { HookDecision, HookEvent, HookFamily, HookInput, HookOutput } from 
 
 export type Tier = "A" | "B" | "C";
 
+/** 中英两份给用户看的文字，按 AdapterContext.lang 取。 */
+export type Text = Readonly<Record<Lang, string>>;
+
 export interface AdapterContext {
   /** 用户主目录 */
   home: string;
@@ -62,6 +65,8 @@ export interface DoctorCheck {
 export interface Adapter {
   id: AgentId;
   displayName: string;
+  /** 英文界面用的名字；不填就用 displayName */
+  displayNameEn?: string;
   tier: Tier;
   /** 未实测的标为 true，init 时提示「实验性」 */
   experimental: boolean;
@@ -69,7 +74,7 @@ export interface Adapter {
   /** 会话开始注入的字符上限 */
   maxContextChars: number;
   /** 写入配置后还要用户自己做的事，init 结束时列在「下一步」里 */
-  afterInstall?: string[];
+  afterInstall?: Text[];
 
   detect(ctx: AdapterContext): Promise<Detection>;
   /** 只算出改动，不写盘；备份和写入由公共代码统一做 */

@@ -3,6 +3,7 @@ import type { Lang } from "../contracts/common.ts";
 import { HotseatError } from "../contracts/errors.ts";
 import { HOOK_LIMITS } from "../contracts/hooks.ts";
 import { OWNERSHIP, isHotseatHookCommand } from "../contracts/adapter.ts";
+import type { Text } from "../contracts/adapter.ts";
 import { readTextOrNull } from "../core/util.ts";
 
 // ---------- 规则片段（PRD §8.3） ----------
@@ -51,7 +52,7 @@ export function removeBlock(text: string | null): string | null {
 
 export type Json = Record<string, unknown>;
 
-export function readJsonFile(path: string): { text: string | null; data: Json } {
+export function readJsonFile(path: string, lang: Lang = "zh"): { text: string | null; data: Json } {
   const text = readTextOrNull(path);
   if (text === null || text.trim() === "") return { text, data: {} };
   try {
@@ -60,8 +61,81 @@ export function readJsonFile(path: string): { text: string | null; data: Json } 
   } catch {
     // 落到下面统一报错
   }
-  throw new HotseatError("INVALID_INPUT", `${path} 不是合法的 JSON 对象，Hotseat 不会修改它。请先修好这个文件。`);
+  throw new HotseatError("INVALID_INPUT", say(lang).badJson(path));
 }
+
+// ---------- 给用户看的文字：init、doctor、uninstall 按 ctx.lang 输出 ----------
+
+/** 中英两份文字。适配器里写死的说明（notes、afterInstall、手动操作的位置）都用它。 */
+export const text = (zh: string, en: string): Text => ({ zh, en });
+
+const ZH = {
+  addMcp: "添加 MCP 服务 hotseat",
+  addUserMcp: "添加用户级 MCP 服务 hotseat",
+  addMcpUnder: (key: string) => `添加 MCP 服务 hotseat（${key}）`,
+  addHooks: (events: string[]) => `添加 ${events.join("、")} Hook（自动注入交接、收工检查）`,
+  appendRules: (name: string) => `在 ${name} 末尾加入 Hotseat 规则片段`,
+  newRules: (name: string) => `新建规则文件 ${name}，写入 Hotseat 规则片段`,
+  listRules: (key: string) => `把规则文件加进 ${key}`,
+  removeMcp: "移除 MCP 服务 hotseat",
+  removeHooks: "移除 Hotseat 的 Hook",
+  removeRules: (name: string) => `移除 ${name} 里的 Hotseat 规则片段`,
+  unlistRules: (key: string) => `从 ${key} 里移除规则文件`,
+  manualMcp: "需要手动添加 MCP 服务（这个工具只能在界面里添加）",
+  manualMcpStep: (where: string) => `打开 ${where}，粘贴上面的 JSON`,
+  manualRules: "需要手动粘贴规则（这个工具的用户级规则只能在设置里填）",
+  manualRulesStep: (where: string) => `打开 ${where}，粘贴上面的规则；也可以运行 hotseat rules 打印`,
+  manualJsonc: "这个文件带注释或不是标准 JSON，Hotseat 不改它，请手动加入下面的内容",
+  manualJsoncStep: (file: string) => `打开 ${file}，把上面的内容合并进去`,
+  mcpOk: "MCP 服务已配置",
+  mcpMissing: (file: string) => `${file} 里没有 hotseat MCP 服务`,
+  mcpElsewhere: (got: string, bin: string) => `MCP 服务指向 ${got}，不是 ${bin}`,
+  mcpNotBin: (bin: string) => `MCP 服务没有指向 ${bin}`,
+  mcpManual: (where: string) => `MCP 服务需要在 ${where} 手动添加，无法自动检查`,
+  rulesOk: "规则片段已写入",
+  rulesMissing: (file: string) => `${file} 里没有 Hotseat 规则片段`,
+  rulesListed: (key: string) => `规则文件已加进 ${key}`,
+  rulesNotListed: (config: string, key: string, file: string) => `${config} 的 ${key} 里没有 ${file}`,
+  rulesManual: (where: string) => `规则需要在 ${where} 手动粘贴，无法自动检查`,
+  hookOk: (event: string) => `${event} Hook 已配置`,
+  hookMissing: (file: string, event: string) => `${file} 里没有 ${event} Hook`,
+  badJson: (path: string) => `${path} 不是合法的 JSON 对象，Hotseat 不会修改它。请先修好这个文件。`,
+};
+
+const EN: typeof ZH = {
+  addMcp: "Add the hotseat MCP server",
+  addUserMcp: "Add the user-level hotseat MCP server",
+  addMcpUnder: (key) => `Add the hotseat MCP server (under ${key})`,
+  addHooks: (events) => `Add the ${events.join(" and ")} hooks (inject the handoff, check before stopping)`,
+  appendRules: (name) => `Append the Hotseat rules to ${name}`,
+  newRules: (name) => `Create the rules file ${name} with the Hotseat rules`,
+  listRules: (key) => `Add the rules file to ${key}`,
+  removeMcp: "Remove the hotseat MCP server",
+  removeHooks: "Remove Hotseat's hooks",
+  removeRules: (name) => `Remove the Hotseat rules from ${name}`,
+  unlistRules: (key) => `Remove the rules file from ${key}`,
+  manualMcp: "Add the MCP server by hand (this tool only accepts MCP servers through its UI)",
+  manualMcpStep: (where) => `Open ${where} and paste the JSON above`,
+  manualRules: "Paste the rules by hand (this tool's user rules can only be set in its settings)",
+  manualRulesStep: (where) => `Open ${where} and paste the rules above; hotseat rules prints them again`,
+  manualJsonc: "This file has comments or isn't plain JSON, so Hotseat won't edit it. Add the content below by hand",
+  manualJsoncStep: (file) => `Open ${file} and merge in the content above`,
+  mcpOk: "MCP server configured",
+  mcpMissing: (file) => `No hotseat MCP server in ${file}`,
+  mcpElsewhere: (got, bin) => `The MCP server points to ${got}, not ${bin}`,
+  mcpNotBin: (bin) => `The MCP server doesn't point to ${bin}`,
+  mcpManual: (where) => `The MCP server is added by hand in ${where}, so it can't be checked automatically`,
+  rulesOk: "Rules written",
+  rulesMissing: (file) => `No Hotseat rules in ${file}`,
+  rulesListed: (key) => `Rules file listed in ${key}`,
+  rulesNotListed: (config, key, file) => `${file} isn't listed in ${key} of ${config}`,
+  rulesManual: (where) => `The rules are pasted by hand in ${where}, so they can't be checked automatically`,
+  hookOk: (event) => `${event} hook configured`,
+  hookMissing: (file, event) => `No ${event} hook in ${file}`,
+  badJson: (path) => `${path} isn't a valid JSON object, so Hotseat won't touch it. Fix the file first.`,
+};
+
+export const say = (lang: Lang): typeof ZH => (lang === "en" ? EN : ZH);
 
 /** 沿用原文件的缩进（两个空格、四个空格或 Tab）和末尾换行。 */
 export function jsonText(data: Json, original: string | null): string {

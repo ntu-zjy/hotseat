@@ -86,7 +86,7 @@ npx hotseat init
 ## 支持的工具
 
 <table>
-<tr><td align="center" width="110"><img src="docs/media/agents/claude.png" width="52" height="52" alt=""><br><sub><b>Claude Code</b></sub><br><sub>✅</sub></td><td align="center" width="110"><img src="docs/media/agents/antigravity.png" width="52" height="52" alt=""><br><sub><b>Antigravity</b></sub><br><sub>✅</sub></td><td align="center" width="110"><img src="docs/media/agents/codex.png" width="52" height="52" alt=""><br><sub><b>Codex</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/cursor.png" width="52" height="52" alt=""><br><sub><b>Cursor</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/copilot.png" width="52" height="52" alt=""><br><sub><b>GitHub Copilot</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/gemini.png" width="52" height="52" alt=""><br><sub><b>Gemini CLI</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/windsurf.png" width="52" height="52" alt=""><br><sub><b>Windsurf</b></sub><br><sub>🧪</sub></td></tr>
+<tr><td align="center" width="110"><img src="docs/media/agents/claude.png" width="52" height="52" alt=""><br><sub><b>Claude Code</b></sub><br><sub>✅</sub></td><td align="center" width="110"><img src="docs/media/agents/antigravity.png" width="52" height="52" alt=""><br><sub><b>Antigravity</b></sub><br><sub>✅</sub></td><td align="center" width="110"><img src="docs/media/agents/codex.png" width="52" height="52" alt=""><br><sub><b>Codex</b></sub><br><sub>✅</sub></td><td align="center" width="110"><img src="docs/media/agents/cursor.png" width="52" height="52" alt=""><br><sub><b>Cursor</b></sub><br><sub>✅</sub></td><td align="center" width="110"><img src="docs/media/agents/copilot.png" width="52" height="52" alt=""><br><sub><b>GitHub Copilot</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/gemini.png" width="52" height="52" alt=""><br><sub><b>Gemini CLI</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/windsurf.png" width="52" height="52" alt=""><br><sub><b>Windsurf</b></sub><br><sub>🧪</sub></td></tr>
 <tr><td align="center" width="110"><img src="docs/media/agents/kiro.png" width="52" height="52" alt=""><br><sub><b>Kiro</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/opencode.png" width="52" height="52" alt=""><br><sub><b>OpenCode</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/cline.png" width="52" height="52" alt=""><br><sub><b>Cline</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/kilo.png" width="52" height="52" alt=""><br><sub><b>Kilo Code</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/workbuddy.png" width="52" height="52" alt=""><br><sub><b>WorkBuddy</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/codebuddy.png" width="52" height="52" alt=""><br><sub><b>CodeBuddy</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/kimi.png" width="52" height="52" alt=""><br><sub><b>Kimi Code</b></sub><br><sub>🧪</sub></td></tr>
 <tr><td align="center" width="110"><img src="docs/media/agents/qwen.png" width="52" height="52" alt=""><br><sub><b>Qwen Code</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/qoder-intl.png" width="52" height="52" alt=""><br><sub><b>Qoder</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/qoder-cn.png" width="52" height="52" alt=""><br><sub><b>Qoder CN</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/lingma.png" width="52" height="52" alt=""><br><sub><b>通义灵码</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/trae.png" width="52" height="52" alt=""><br><sub><b>Trae</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/trae.png" width="52" height="52" alt=""><br><sub><b>Trae CN</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/iflow.png" width="52" height="52" alt=""><br><sub><b>iFlow CLI</b></sub><br><sub>🧪</sub></td></tr>
 </table>
@@ -100,8 +100,8 @@ npx hotseat init
 |---|---|:-:|:-:|:-:|:-:|
 | Claude Code（含 Claude 桌面 App 的 Code 标签页） | ✅ 已实测 | ✅ | ✅ | ✅ | ✅ |
 | Antigravity / agy（IDE、App、CLI） | ✅ 已实测 | ✅ | ✅ | ✅ | ✅ |
-| Codex（CLI 和桌面 App） | 🧪 实验性 | ✅ | ✅ | ✅ ¹ | ✅ ¹ |
-| Cursor | 🧪 实验性 | ✅ | 手动 ² | ✅ | ✅ |
+| Codex（CLI 和桌面 App） | ✅ 已实测 | ✅ | ✅ | ✅ ¹ | ✅ ¹ |
+| Cursor | ✅ 已实测 | ✅ | 手动 ² | ✅ | ✅ |
 | Qoder CN（桌面 App 和 CLI） | 🧪 实验性 | ✅ | ✅ | ✅ | ✅ |
 | Qoder（海外版） | 🧪 实验性 | ✅ | ✅ | ✅ | ✅ |
 | WorkBuddy（腾讯） | 🧪 实验性 | ✅ | ✅ | ✅ | ✅ |
@@ -120,7 +120,7 @@ npx hotseat init
 | OpenCode | 🧪 实验性 | ✅ | ✅ | 靠规则 | — |
 | 其他支持 MCP 的工具 | 手动接入 | ✅ | 写进该工具的规则文件 | 靠规则 | — |
 
-¹ Codex 的新 Hook 要你信任后才会运行：在 Codex 里输入 `/hooks`。<br>
+¹ Codex 的新 Hook 要你信任后才会运行：在 Codex 里输入 `/hooks`。不开 Hook 也能接力（按规则自己调用 `get_context`），实测过的是这条路径；Hook 部分还没在真实 Codex 里测过。<br>
 ² 这些工具的用户级规则只能在设置里填：运行 `hotseat rules`，把输出粘贴进去。<br>
 ³ 这些工具不采用会话开始 Hook 的输出，所以在每个会话的第一条消息时注入交接（只注入一次）。<br>
 ⁴ Gemini CLI：输入 `/hooks` 确认 Hotseat 的 Hook 已启用。<br>

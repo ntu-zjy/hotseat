@@ -2,14 +2,14 @@
 // 用一份描述（AgentSpec）生成完整的适配器：安装、卸载（逐字节还原）、doctor、Hook 输入输出。
 // 不能自动写入的部分（只能在界面里添加的 MCP、只能在设置里填的规则）生成 manual 改动，init 时展示要粘贴的内容。
 import { existsSync, readdirSync } from "node:fs";
-import { dirname, join } from "node:path";
-import type { Adapter, AdapterContext, DoctorCheck, PlannedChange, Tier } from "../contracts/adapter.ts";
+import { basename, dirname, join } from "node:path";
+import type { Adapter, AdapterContext, DoctorCheck, PlannedChange, Text, Tier } from "../contracts/adapter.ts";
 import { OWNERSHIP, hookCommand, isHotseatHookCommand } from "../contracts/adapter.ts";
 import type { AgentId, InstallPart } from "../contracts/common.ts";
 import { HOOK_LIMITS, type HookEvent, type HookFamily } from "../contracts/hooks.ts";
 import { homePath, readTextOrNull } from "../core/util.ts";
 import { normalizeHookInput, renderHookOutput } from "../hooks/normalize.ts";
-import { hasClaudeHook, isObj, jsonText, mergeClaudeHooks, readJsonFile, removeBlock, rulesText, setEntry, stripClaudeHooks, upsertBlock, type Json } from "./shared.ts";
+import { hasClaudeHook, isObj, jsonText, mergeClaudeHooks, readJsonFile, removeBlock, rulesText, say, setEntry, stripClaudeHooks, upsertBlock, type Json } from "./shared.ts";
 
 type Ctx = AdapterContext;
 type PathFn = (ctx: Ctx) => string;
@@ -17,20 +17,21 @@ type PathFn = (ctx: Ctx) => string;
 export interface AgentSpec {
   id: AgentId;
   displayName: string;
+  displayNameEn?: string;
   tier: Tier;
   hookFamily: HookFamily | null;
   maxContextChars: number;
   /** 只看用户主目录下的文件或目录（不看 /Applications，测试用临时主目录时不受开发机影响） */
   detect: (ctx: Ctx) => string[];
-  notes?: string[];
-  afterInstall?: string[];
+  notes?: Text[];
+  afterInstall?: Text[];
   mcp?:
     /** file 可以给多个候选（例如同一个扩展装在 VS Code、Cursor 里）：写入所有目录已存在的；都不存在就写第一个 */
     | { kind: "json"; file: (ctx: Ctx) => string | string[]; key: string; entry: (bin: string, agent: AgentId) => Json }
-    | { kind: "manual"; where: string };
+    | { kind: "manual"; where: Text };
   rules?:
     | { kind: "block"; file: PathFn }
-    | { kind: "manual"; where: string }
+    | { kind: "manual"; where: Text }
     /** 规则写进 Hotseat 自己的文件，再把这个文件的路径加进配置里的数组（Kilo Code 的 instructions） */
     | { kind: "listed"; file: PathFn; config: PathFn; key: string };
   hooks?:
@@ -67,6 +68,66 @@ export function removeTomlBlock(text: string | null): string | null {
   // 安装时在原文末尾补的空行一并去掉，逐字节还原
   else if (m.index === out.length && out.endsWith("\n\n")) out = out.slice(0, -1);
   return out.trim() === "" ? null : out;
+}
+
+/**
+ * 认出 Hotseat 写入的 [[hooks]] 表：看 command 是不是 Hotseat 的 Hook 命令，不靠注释标记。
+ * Kimi Code 登录、切模型时会把 config.toml 整份重写，注释（包括 # hotseat:begin/end）会被删掉，Hook 本身还在。
+ */
+const TOML_HEADER_RE = /^\[\[?[A-Za-z0-9_."-]+\]\]?\s*(#.*)?$/;
+
+function tomlString(line: string | undefined): string | null {
+  const m = line && /^\s*("(?:[^"\\]|\\.)*"|'[^']*')/.exec(line);
+  if (!m) return null;
+  const v = m[1] as string;
+  try {
+    return v.startsWith("'") ? v.slice(1, -1) : (JSON.parse(v) as string);
+  } catch {
+    return null;
+  }
+}
+
+/** 文件里 Hotseat 的 [[hooks]] 表：每张表的起止行号（含后面紧跟的空行）和事件名 */
+function ourTomlHooks(text: string): { start: number; end: number; event: string | null }[] {
+  const lines = text.split("\n");
+  const out: { start: number; end: number; event: string | null }[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if ((lines[i] as string).trim() !== "[[hooks]]") continue;
+    let j = i + 1;
+    const fields: Record<string, string | null> = {};
+    // 表的内容：直到空行、注释或下一个表头
+    while (j < lines.length && (lines[j] as string).trim() !== "" && !(lines[j] as string).trimStart().startsWith("#") && !TOML_HEADER_RE.test(lines[j] as string)) {
+      const m = /^\s*([A-Za-z_]+)\s*=(.*)$/.exec(lines[j] as string);
+      if (m) fields[m[1] as string] = tomlString(m[2]);
+      j++;
+    }
+    const command = fields.command;
+    if (command && isHotseatHookCommand(command)) {
+      let end = j;
+      while (end < lines.length && (lines[end] as string).trim() === "") end++;
+      out.push({ start: i, end, event: fields.event ?? null });
+    }
+    i = j - 1;
+  }
+  return out;
+}
+
+/** 去掉标记块，再去掉没有标记的 Hotseat [[hooks]] 表（被重写过的文件）。 */
+export function removeTomlHooks(text: string | null): string | null {
+  if (text === null) return null;
+  let out = removeTomlBlock(text);
+  if (out === null) return null;
+  const ours = ourTomlHooks(out);
+  if (ours.length === 0) return out;
+  const lines = out.split("\n");
+  const drop = new Set(ours.flatMap((h) => Array.from({ length: h.end - h.start }, (_, k) => h.start + k)));
+  out = lines.filter((_, i) => !drop.has(i)).join("\n");
+  out = out.replace(/\n{2,}$/, "\n");
+  return out.trim() === "" ? null : out;
+}
+
+export function tomlHookEvents(text: string | null): string[] {
+  return text ? ourTomlHooks(text).map((h) => h.event).filter((e): e is string => e !== null) : [];
 }
 
 // ---------- 生成适配器 ----------
@@ -121,6 +182,7 @@ export function makeAdapter(spec: AgentSpec): Adapter {
   return {
     id,
     displayName: spec.displayName,
+    displayNameEn: spec.displayNameEn,
     tier: spec.tier,
     experimental: true,
     hookFamily: spec.hookFamily,
@@ -135,10 +197,11 @@ export function makeAdapter(spec: AgentSpec): Adapter {
         spec.rules?.kind === "listed" ? spec.rules.config(ctx) : null,
         spec.hooks ? spec.hooks.file(ctx) : null,
       ].filter((p): p is string => p !== null);
-      return { installed: found.length > 0, version: null, configPaths: [...new Set(paths)], notes: found.length > 0 ? (spec.notes ?? []) : [] };
+      return { installed: found.length > 0, version: null, configPaths: [...new Set(paths)], notes: found.length > 0 ? (spec.notes ?? []).map((n) => n[ctx.lang]) : [] };
     },
 
     async planInstall(ctx, opts) {
+      const t = say(ctx.lang);
       const out: PlannedChange[] = [];
       // 同一个 JSON 文件里有多处改动（例如 settings.json 里 MCP 和 Hook）：后一处接着前一处的结果算
       const state = new Map<string, { text: string | null; data: Json }>();
@@ -147,7 +210,7 @@ export function makeAdapter(spec: AgentSpec): Adapter {
       const jsonStep = (part: InstallPart, file: string, summary: string, change: (d: Json) => Json, preview: string) => {
         const cur = state.get(file) ?? tryReadJson(file);
         // 文件不是标准 JSON（例如带注释的 jsonc）：不去改它，给出要手动粘贴的片段
-        if (!cur) return manual(part, file, "这个文件带注释或不是标准 JSON，Hotseat 不改它，请手动加入下面的内容", preview, [`打开 ${file}，把上面的内容合并进去`]);
+        if (!cur) return manual(part, file, t.manualJsonc, preview, [t.manualJsoncStep(file)]);
         const next = change(cur.data);
         const after = jsonText(next, cur.text);
         out.push({ agent: id, part, file, kind: "json-merge", summary, before: cur.text, after, preview });
@@ -159,11 +222,12 @@ export function makeAdapter(spec: AgentSpec): Adapter {
           const { key, entry } = spec.mcp;
           const value = entry(ctx.bin, id);
           for (const file of pickFiles(spec.mcp.file(ctx))) {
-            jsonStep("mcp", file, `添加 MCP 服务 hotseat（${key}）`, (d) => setEntry(d, key, OWNERSHIP.mcpKey, value), JSON.stringify({ [key]: { [OWNERSHIP.mcpKey]: value } }, null, 2));
+            jsonStep("mcp", file, t.addMcpUnder(key), (d) => setEntry(d, key, OWNERSHIP.mcpKey, value), JSON.stringify({ [key]: { [OWNERSHIP.mcpKey]: value } }, null, 2));
           }
         } else {
           const value = { mcpServers: { [OWNERSHIP.mcpKey]: { command: ctx.bin, args: ["mcp"], env: { HOTSEAT_AGENT: id } } } };
-          manual("mcp", spec.mcp.where, "需要手动添加 MCP 服务（这个工具只能在界面里添加）", JSON.stringify(value, null, 2), [`打开 ${spec.mcp.where}，粘贴上面的 JSON`]);
+          const where = spec.mcp.where[ctx.lang];
+          manual("mcp", where, t.manualMcp, JSON.stringify(value, null, 2), [t.manualMcpStep(where)]);
         }
       }
       if (spec.rules && opts.parts.includes("rules")) {
@@ -171,32 +235,37 @@ export function makeAdapter(spec: AgentSpec): Adapter {
         if (spec.rules.kind === "block" || spec.rules.kind === "listed") {
           const file = spec.rules.file(ctx);
           const before = readTextOrNull(file);
-          out.push({ agent: id, part: "rules", file, kind: "marked-block", summary: before === null ? "新建规则文件，写入 Hotseat 规则片段" : "在规则文件末尾加入 Hotseat 规则片段", before, after: upsertBlock(before, block), preview: block });
+          out.push({ agent: id, part: "rules", file, kind: "marked-block", summary: before === null ? t.newRules(basename(file)) : t.appendRules(basename(file)), before, after: upsertBlock(before, block), preview: block });
           if (spec.rules.kind === "listed") {
             const key = spec.rules.key;
-            jsonStep("rules", spec.rules.config(ctx), `把规则文件加进 ${key}`, (d) => addToList(d, key, file), JSON.stringify({ [key]: [file] }, null, 2));
+            jsonStep("rules", spec.rules.config(ctx), t.listRules(key), (d) => addToList(d, key, file), JSON.stringify({ [key]: [file] }, null, 2));
           }
         } else {
-          manual("rules", spec.rules.where, "需要手动粘贴规则（这个工具的用户级规则只能在设置里填）", rulesText(ctx.lang, false), [`打开 ${spec.rules.where}，粘贴上面的规则；也可以运行 hotseat rules 打印`]);
+          const where = spec.rules.where[ctx.lang];
+          manual("rules", where, t.manualRules, rulesText(ctx.lang, false), [t.manualRulesStep(where)]);
         }
       }
       if (spec.hooks && opts.parts.includes("hooks")) {
         const cmds = commands(ctx, spec.hooks.events);
         const preview = Object.entries(cmds).map(([e, c]) => `${e}: ${c}`).join("\n");
-        const summary = `添加 ${Object.keys(cmds).join("、")} Hook（自动注入交接、收工检查）`;
+        const summary = t.addHooks(Object.keys(cmds));
         if (spec.hooks.kind === "json") {
           const extra = spec.hooks.extra;
           jsonStep("hooks", spec.hooks.file(ctx), summary, (d) => mergeClaudeHooks(d, cmds, extra), preview);
         } else {
           const file = spec.hooks.file(ctx);
           const before = readTextOrNull(file);
-          out.push({ agent: id, part: "hooks", file, kind: "toml-merge", summary, before, after: upsertTomlBlock(before, tomlHooksBlock(cmds)), preview });
+          // 已经有同样几条 Hook（文件被重写、标记没了也算）就不再改，免得加出第二份
+          const have = tomlHookEvents(before);
+          const same = before !== null && have.length === Object.keys(cmds).length && Object.entries(cmds).every(([e, c]) => have.includes(e) && before.includes(JSON.stringify(c)));
+          if (!same) out.push({ agent: id, part: "hooks", file, kind: "toml-merge", summary, before, after: upsertTomlBlock(removeTomlHooks(before), tomlHooksBlock(cmds)), preview });
         }
       }
       return out.filter((c) => c.kind === "manual" || c.before !== c.after);
     },
 
     async planUninstall(ctx) {
+      const t = say(ctx.lang);
       const out: PlannedChange[] = [];
       const state = new Map<string, { text: string | null; data: Json }>();
       const jsonStep = (part: InstallPart, file: string, summary: string, change: (d: Json) => Json) => {
@@ -213,35 +282,37 @@ export function makeAdapter(spec: AgentSpec): Adapter {
       if (spec.mcp?.kind === "json") {
         const key = spec.mcp.key;
         const all = spec.mcp.file(ctx);
-        for (const file of Array.isArray(all) ? all : [all]) jsonStep("mcp", file, "移除 MCP 服务 hotseat", (d) => setEntry(d, key, OWNERSHIP.mcpKey, undefined));
+        for (const file of Array.isArray(all) ? all : [all]) jsonStep("mcp", file, t.removeMcp, (d) => setEntry(d, key, OWNERSHIP.mcpKey, undefined));
       }
       if (spec.rules?.kind === "listed") {
         const { key } = spec.rules;
         const file = spec.rules.file(ctx);
-        jsonStep("rules", spec.rules.config(ctx), `从 ${key} 里移除规则文件`, (d) => removeFromList(d, key, file));
+        jsonStep("rules", spec.rules.config(ctx), t.unlistRules(key), (d) => removeFromList(d, key, file));
       }
-      if (spec.hooks?.kind === "json") jsonStep("hooks", spec.hooks.file(ctx), "移除 Hotseat 的 Hook", stripClaudeHooks);
+      if (spec.hooks?.kind === "json") jsonStep("hooks", spec.hooks.file(ctx), t.removeHooks, stripClaudeHooks);
       if (spec.hooks?.kind === "toml") {
         const file = spec.hooks.file(ctx);
         const text = readTextOrNull(file);
-        if (text?.includes(TOML_BEGIN)) out.push({ agent: id, part: "hooks", file, kind: "toml-merge", summary: "移除 Hotseat 的 Hook", before: text, after: removeTomlBlock(text) });
+        const after = removeTomlHooks(text);
+        if (text !== null && after !== text) out.push({ agent: id, part: "hooks", file, kind: "toml-merge", summary: t.removeHooks, before: text, after });
       }
       if (spec.rules?.kind === "block" || spec.rules?.kind === "listed") {
         const file = spec.rules.file(ctx);
         const text = readTextOrNull(file);
-        if (text?.includes(OWNERSHIP.rulesBegin)) out.push({ agent: id, part: "rules", file, kind: "marked-block", summary: "移除 Hotseat 规则片段", before: text, after: removeBlock(text) });
+        if (text?.includes(OWNERSHIP.rulesBegin)) out.push({ agent: id, part: "rules", file, kind: "marked-block", summary: t.removeRules(basename(file)), before: text, after: removeBlock(text) });
       }
       return out;
     },
 
     async doctor(ctx) {
+      const t = say(ctx.lang);
       const fix = `hotseat init --only ${id}`;
       const checks: DoctorCheck[] = [];
       const ok = (part: DoctorCheck["part"], message: string): DoctorCheck => ({ agent: id, part, ok: true, message });
       const bad = (part: DoctorCheck["part"], message: string): DoctorCheck => ({ agent: id, part, ok: false, message, fix });
       const json = (file: string): Json | null => {
         try {
-          return readJsonFile(file).data;
+          return readJsonFile(file, ctx.lang).data;
         } catch (e) {
           checks.push(bad("mcp", (e as Error).message));
           return null;
@@ -252,31 +323,29 @@ export function makeAdapter(spec: AgentSpec): Adapter {
           const data = json(file);
           const group = data && isObj(data[spec.mcp.key]) ? (data[spec.mcp.key] as Json) : null;
           const entry = group && isObj(group[OWNERSHIP.mcpKey]) ? (group[OWNERSHIP.mcpKey] as Json) : null;
-          if (data) checks.push(!entry ? bad("mcp", `${file} 里没有 hotseat MCP 服务`) : !JSON.stringify(entry).includes(JSON.stringify(ctx.bin)) ? bad("mcp", `MCP 服务没有指向 ${ctx.bin}`) : ok("mcp", "MCP 服务已配置"));
+          if (data) checks.push(!entry ? bad("mcp", t.mcpMissing(file)) : !JSON.stringify(entry).includes(JSON.stringify(ctx.bin)) ? bad("mcp", t.mcpNotBin(ctx.bin)) : ok("mcp", t.mcpOk));
         }
-      } else if (spec.mcp) checks.push(ok("mcp", `MCP 服务需要在 ${spec.mcp.where} 手动添加，无法自动检查`));
+      } else if (spec.mcp) checks.push(ok("mcp", t.mcpManual(spec.mcp.where[ctx.lang])));
       if (spec.rules?.kind === "block" || spec.rules?.kind === "listed") {
         const file = spec.rules.file(ctx);
-        checks.push(readTextOrNull(file)?.includes(OWNERSHIP.rulesBegin) ? ok("rules", "规则片段已写入") : bad("rules", `${file} 里没有 Hotseat 规则片段`));
+        checks.push(readTextOrNull(file)?.includes(OWNERSHIP.rulesBegin) ? ok("rules", t.rulesOk) : bad("rules", t.rulesMissing(file)));
         if (spec.rules.kind === "listed") {
           const data = json(spec.rules.config(ctx));
           const list = data?.[spec.rules.key];
-          if (data) checks.push(Array.isArray(list) && list.includes(file) ? ok("rules", `规则文件已加进 ${spec.rules.key}`) : bad("rules", `${spec.rules.config(ctx)} 的 ${spec.rules.key} 里没有 ${file}`));
+          if (data) checks.push(Array.isArray(list) && list.includes(file) ? ok("rules", t.rulesListed(spec.rules.key)) : bad("rules", t.rulesNotListed(spec.rules.config(ctx), spec.rules.key, file)));
         }
-      } else if (spec.rules) checks.push(ok("rules", `规则需要在 ${spec.rules.where} 手动粘贴，无法自动检查`));
+      } else if (spec.rules) checks.push(ok("rules", t.rulesManual(spec.rules.where[ctx.lang])));
       if (spec.hooks?.kind === "json") {
         const file = spec.hooks.file(ctx);
         const data = json(file);
         for (const event of Object.keys(spec.hooks.events)) {
-          if (data) checks.push(hasClaudeHook(data, event) ? ok("hooks", `${event} Hook 已配置`) : bad("hooks", `${file} 里没有 ${event} Hook`));
+          if (data) checks.push(hasClaudeHook(data, event) ? ok("hooks", t.hookOk(event)) : bad("hooks", t.hookMissing(file, event)));
         }
       } else if (spec.hooks?.kind === "toml") {
         const file = spec.hooks.file(ctx);
-        const text = readTextOrNull(file) ?? "";
-        const block = TOML_BLOCK_RE.exec(text)?.[0] ?? "";
+        const have = tomlHookEvents(readTextOrNull(file));
         for (const event of Object.keys(spec.hooks.events)) {
-          const has = block.includes(`event = ${JSON.stringify(event)}`) && block.split("\n").some((l) => l.startsWith("command = ") && isHotseatHookCommand(JSON.parse(l.slice(10))));
-          checks.push(has ? ok("hooks", `${event} Hook 已配置`) : bad("hooks", `${file} 里没有 ${event} Hook`));
+          checks.push(have.includes(event) ? ok("hooks", t.hookOk(event)) : bad("hooks", t.hookMissing(file, event)));
         }
       }
       return checks;

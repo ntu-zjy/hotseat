@@ -81,7 +81,10 @@ test("config.json 和 task.yaml 的示例能通过校验，缺省值生效", () 
   assert.equal(c.lang, "zh");
   assert.equal(c.pack.defaultBudget, 5000);
   assert.equal(c.agents.claude?.stopCheck, true);
-  assert.throws(() => Config.parse({ v: 1, agents: { notatool: {} } }));
+  assert.throws(() => Config.parse({ v: 1, agents: { claude: {} } }));
+  // 新版写进来的工具，旧版也要能读（升级时还开着的会话用的是旧版 MCP 服务）
+  const future = Config.parse({ v: 1, agents: { "future-tool": { enabled: true, installedAt: "2026-11-24T10:00:00+08:00", parts: ["mcp"] } } });
+  assert.equal(future.agents["future-tool"]?.enabled, true);
 
   TaskFile.parse({
     v: 1,

@@ -120,8 +120,8 @@ test("Codex、Cursor、Qoder CN：init 写入、Hook 按各自格式输出、uni
   const r = cli(env, ["init", "--yes"]);
   assert.equal(r.code, 0, r.out + r.err);
   assert.match(r.out, /Claude Code：没有检测到，跳过/);
-  assert.match(r.out, /Codex：已检测到（实验性）/);
-  assert.match(r.out, /重启Codex、Cursor、Qoder CN/);
+  assert.match(r.out, /- Codex：已检测到，CLI 和桌面 App 共用这份配置/); // 实测过的不再标实验性
+  assert.match(r.out, /重启 Codex、Cursor、Qoder CN/);
   assert.match(r.out, /在 Codex 里输入 \/hooks/);
   const bin = join(home, "Hotseat", ".hotseat", "bin", "hotseat");
 
@@ -159,6 +159,10 @@ test("Codex、Cursor、Qoder CN：init 写入、Hook 按各自格式输出、uni
   assert.match(qoderOut.hookSpecificOutput.additionalContext, /你是 qoder-cn。/);
   const cursorOut = JSON.parse(sh(env, cursorHooks.hooks.sessionStart[0].command, { session_id: "c1", conversation_id: "c1", workspace_roots: [project], hook_event_name: "sessionStart" }, project));
   assert.match(cursorOut.additional_context, /你是 cursor。/);
+  // Cursor 也会跑 ~/.claude/settings.json 里 Claude 的 Hook（输入是 Cursor 格式）：Claude 那条要放行、不注入
+  const claudeInCursor = { session_id: "c2", conversation_id: "c2", cursor_version: "3.22.12", workspace_roots: [project], hook_event_name: "sessionStart" };
+  assert.equal(cli(env, ["hook", "claude", "session-start"], { input: JSON.stringify(claudeInCursor), cwd: project }).out, "");
+  assert.equal(cli(env, ["hook", "claude", "stop"], { input: JSON.stringify({ ...claudeInCursor, hook_event_name: "stop", status: "completed" }), cwd: project }).out, "");
   writeFileSync(join(project, "login.tsx"), "export {}\n");
   const cursorStop = JSON.parse(sh(env, cursorHooks.hooks.stop[0].command, { conversation_id: "c1", generation_id: "g1", status: "completed", loop_count: 0, workspace_roots: [project], hook_event_name: "stop" }, project));
   assert.match(cursorStop.followup_message, /login\.tsx/);
@@ -332,6 +336,81 @@ async function call(client: Client, name: ToolName, args: Record<string, unknown
   assert.equal(r.structuredContent, undefined, `${name} 不应返回 structuredContent`);
   return r;
 }
+
+test("Kimi Code 重写 config.toml 删掉注释标记后：不重复加 Hook，doctor 认得出，uninstall 删得掉", () => {
+  const { home, env } = sandbox();
+  const original = 'default_model = "kimi-k2"\n\n[models.kimi-k2]\nprovider = "kimi"\n';
+  mkdirSync(join(home, ".kimi-code"), { recursive: true });
+  writeFileSync(join(home, ".kimi-code", "config.toml"), original);
+  assert.equal(cli(env, ["init", "--only", "kimi", "--yes"]).code, 0);
+  const file = join(home, ".kimi-code", "config.toml");
+  // kimi login 之后的样子：整份重写，注释没了，Hook 还在，后面又多了一张表
+  const rewritten = `${readFileSync(file, "utf8").split("\n").filter((l) => !l.startsWith("#")).join("\n").replace(/\n{3,}/g, "\n\n")}\n[models.k3]\nprovider = "kimi"\n`;
+  writeFileSync(file, rewritten);
+  const again = cli(env, ["init", "--only", "kimi", "--dry-run"]);
+  assert.doesNotMatch(again.out, /config\.toml/, again.out); // 已经有这两条 Hook，不再加第二份
+  const doc = cli(env, ["doctor"]);
+  assert.match(doc.out, /\[kimi\] UserPromptSubmit Hook 已配置/);
+  assert.match(doc.out, /\[kimi\] Stop Hook 已配置/);
+  assert.equal(cli(env, ["uninstall", "--yes"]).code, 0);
+  const left = readFileSync(file, "utf8");
+  assert.doesNotMatch(left, /\[\[hooks\]\]|hotseat/);
+  assert.match(left, /\[models\.k3\]\nprovider = "kimi"\n$/); // Kimi 自己加的内容留着
+  assert.ok(left.startsWith(original));
+});
+
+test("英文界面：21 个工具全部检测到时，init、doctor、uninstall、help 的输出里没有中文", () => {
+  const { home, env } = sandbox();
+  const enEnv = { ...env, LANG: "en_US.UTF-8" };
+  const dirs = [".claude", ".gemini/config", ".codex", ".cursor", ".qoder-cn", ".qoder", ".workbuddy", ".codebuddy", ".kimi-code", ".lingma", ".trae", ".trae-cn", ".gemini/tmp", ".copilot", ".codeium/windsurf", ".kiro", ".config/opencode", ".qwen", ".iflow", ".cline", ".config/kilo"];
+  for (const d of dirs) mkdirSync(join(home, d), { recursive: true });
+  const cjk = /[\u4e00-\u9fff]/;
+  const noChinese = (label: string, out: string) => {
+    const line = out.split("\n").find((l) => cjk.test(l));
+    assert.equal(line, undefined, `${label} has Chinese: ${line}`);
+  };
+
+  const dry = cli(enEnv, ["init", "--dry-run"]);
+  assert.equal(dry.code, 0, dry.out + dry.err);
+  assert.equal(dry.out.match(/: detected/g)?.length, 21, dry.out);
+  assert.match(dry.out, /Tongyi Lingma: detected \(experimental\)/);
+  assert.match(dry.out, /→ Open Lingma → Personal Settings → MCP Services → Add manually and paste the JSON above/);
+  assert.doesNotMatch(dry.out, /will be deleted/); // 手动步骤不是删除文件
+  noChinese("init --dry-run", dry.out);
+
+  const r = cli(enEnv, ["init", "--yes"]);
+  assert.equal(r.code, 0, r.out + r.err);
+  assert.match(r.out, /In Codex, type \/hooks and trust Hotseat's SessionStart and Stop hooks/);
+  noChinese("init", r.out);
+  assert.match(readFileSync(join(home, ".codex", "AGENTS.md"), "utf8"), /## Hotseat shared context/);
+
+  const doc = cli(enEnv, ["doctor"]);
+  noChinese("doctor", doc.out + doc.err);
+  assert.match(doc.out, /\[codex\] MCP server configured/);
+  noChinese("help", cli(enEnv, ["--help"]).out);
+  const un = cli(enEnv, ["uninstall", "--yes"]);
+  assert.equal(un.code, 0, un.out + un.err);
+  noChinese("uninstall", un.out + un.err);
+});
+
+test("doctor 只检查接入过的工具；装了没接入的只提示，不算失败；旧版也能读新版写的配置", () => {
+  const { home, env } = sandbox();
+  mkdirSync(join(home, ".claude"), { recursive: true });
+  mkdirSync(join(home, ".copilot"), { recursive: true });
+  assert.equal(cli(env, ["init", "--only", "claude", "--yes"]).code, 0);
+  const doc = cli(env, ["doctor"]);
+  assert.equal(doc.code, 0, doc.out);
+  assert.doesNotMatch(doc.out, /\[copilot\]/);
+  assert.match(doc.out, /还检测到这些工具，但没有接入：GitHub Copilot。要接入就运行 hotseat init --only copilot/);
+  // 以后的版本加了新工具，写进 config.json；现在这版（还开着的会话）照样能用
+  const configFile = join(home, "Hotseat", ".hotseat", "config.json");
+  const config = readJson(configFile);
+  config.agents["future-tool"] = { enabled: true, installedAt: "2026-12-01T10:00:00+08:00", parts: ["mcp"] };
+  writeFileSync(configFile, JSON.stringify(config, null, 2));
+  assert.equal(cli(env, ["doctor"]).code, 0);
+  assert.equal(cli(env, ["new", "Login refresh"], { cwd: join(home, "code", "webapp") }).code, 0);
+  assert.equal(readJson(configFile).agents["future-tool"].enabled, true);
+});
 
 test("MCP + Hook：Claude 干活 → 收工检查拦截 → 记录 → agy 新会话自动拿到上下文", async () => {
   const { home, project, env } = sandbox();

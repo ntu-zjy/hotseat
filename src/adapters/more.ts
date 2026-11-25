@@ -7,6 +7,7 @@ import { mcpServerEntry } from "../contracts/adapter.ts";
 import type { AgentId } from "../contracts/common.ts";
 import { HOOK_LIMITS } from "../contracts/hooks.ts";
 import { editorUserDirs, homeJoin, makeAdapter, pickFiles } from "./generic.ts";
+import { text } from "./shared.ts";
 
 /** 不带 type 字段的 mcpServers 条目（有些工具的配置校验不认 type） */
 const plainEntry = (bin: string, agent: AgentId) => ({ command: bin, args: ["mcp"], env: { HOTSEAT_AGENT: agent } });
@@ -64,7 +65,7 @@ const kimi = makeAdapter({
   hookFamily: "kimi",
   maxContextChars: 9500,
   detect: (c) => [kimiDir(c)],
-  afterInstall: ["Kimi Code 里输入 /reload 或重开会话，让新的 MCP 和 Hook 生效"],
+  afterInstall: [text("Kimi Code 里输入 /reload 或重开会话，让新的 MCP 和 Hook 生效", "In Kimi Code, type /reload or start a new session so the new MCP server and hooks take effect")],
   mcp: { kind: "json", file: (c) => join(kimiDir(c), "mcp.json"), key: "mcpServers", entry: plainEntry },
   rules: { kind: "block", file: (c) => join(kimiDir(c), "AGENTS.md") },
   hooks: { kind: "toml", file: (c) => join(kimiDir(c), "config.toml"), events: { UserPromptSubmit: "prompt", Stop: "stop" } },
@@ -77,12 +78,13 @@ const kimi = makeAdapter({
 const lingma = makeAdapter({
   id: "lingma",
   displayName: "通义灵码",
+  displayNameEn: "Tongyi Lingma",
   tier: "B",
   hookFamily: "claude",
   maxContextChars: 9500,
   detect: (c) => [join(c.home, ".lingma")],
-  mcp: { kind: "manual", where: "通义灵码 → 个人设置 → MCP 服务 → 手动添加" },
-  rules: { kind: "manual", where: "通义灵码 → 个人设置 → 规则" },
+  mcp: { kind: "manual", where: text("通义灵码 → 个人设置 → MCP 服务 → 手动添加", "Lingma → Personal Settings → MCP Services → Add manually") },
+  rules: { kind: "manual", where: text("通义灵码 → 个人设置 → 规则", "Lingma → Personal Settings → Rules") },
   hooks: { kind: "json", file: homeJoin(".lingma", "settings.json"), events: { UserPromptSubmit: "prompt", Stop: "stop" } },
 });
 
@@ -95,8 +97,8 @@ const trae = (id: "trae" | "trae-cn", name: string, dir: string) =>
     hookFamily: null,
     maxContextChars: 8000,
     detect: (c) => [join(c.home, dir)],
-    mcp: { kind: "manual", where: `${name} → 设置 → MCP → 添加 → 手动配置` },
-    rules: { kind: "manual", where: `${name} → 设置 → 规则 → 个人规则` },
+    mcp: { kind: "manual", where: text(`${name} → 设置 → MCP → 添加 → 手动配置`, `${name} → Settings → MCP → Add → Configure manually`) },
+    rules: { kind: "manual", where: text(`${name} → 设置 → 规则 → 个人规则`, `${name} → Settings → Rules → User rules`) },
   });
 
 // ---------- 海外 ----------
@@ -111,7 +113,7 @@ const gemini = makeAdapter({
   hookFamily: "gemini",
   maxContextChars: 9500,
   detect: (c) => ["settings.json", "oauth_creds.json", "google_accounts.json", "tmp"].map((f) => join(c.home, ".gemini", f)),
-  afterInstall: ["Gemini CLI 里输入 /hooks，确认 Hotseat 的 SessionStart、AfterAgent 两个 Hook 已启用"],
+  afterInstall: [text("Gemini CLI 里输入 /hooks，确认 Hotseat 的 SessionStart、AfterAgent 两个 Hook 已启用", "In Gemini CLI, type /hooks and check that Hotseat's SessionStart and AfterAgent hooks are enabled")],
   mcp: { kind: "json", file: homeJoin(".gemini", "settings.json"), key: "mcpServers", entry: plainEntry },
   rules: { kind: "block", file: homeJoin(".gemini", "GEMINI.md") },
   hooks: {
@@ -132,7 +134,7 @@ const copilot = makeAdapter({
   hookFamily: null,
   maxContextChars: 8000,
   detect: (c) => [join(c.home, ".copilot")],
-  notes: ["Copilot CLI、桌面 App 和 VS Code 里的 Copilot 共用这份配置"],
+  notes: [text("Copilot CLI、桌面 App 和 VS Code 里的 Copilot 共用这份配置", "Copilot CLI, the desktop app and Copilot in VS Code share this config")],
   mcp: { kind: "json", file: homeJoin(".copilot", "mcp-config.json"), key: "mcpServers", entry: (bin, agent) => ({ type: "local", command: bin, args: ["mcp"], env: { HOTSEAT_AGENT: agent }, tools: ["*"] }) },
   rules: { kind: "block", file: homeJoin(".copilot", "copilot-instructions.md") },
 });
