@@ -6,7 +6,7 @@
 
 **Switch AI agents mid-task. The next one already knows.**
 
-One command gives 17 agents, from Claude Code, Codex, Cursor and Gemini CLI to WorkBuddy, Kimi Code and Qoder, a shared, local task context.<br>
+One command gives 21 agents, from Claude Code, Codex, Cursor, Copilot and Gemini CLI to WorkBuddy, Kimi Code, Qwen Code and Qoder, a shared, local task context.<br>
 No more "summarize what you did" and "read the folder first".
 
 English · [简体中文](README.zh-CN.md)
@@ -99,9 +99,13 @@ The pack is built per agent, ordered by what matters for the job, and capped (ab
 | CodeBuddy Code (Tencent) | 🧪 experimental | ✅ | ✅ | ✅ | ✅ |
 | Kimi Code (Moonshot) | 🧪 experimental | ✅ | ✅ | ✅ ³ | ✅ |
 | Gemini CLI | 🧪 experimental | ✅ | ✅ | ✅ ⁴ | ✅ ⁴ |
+| Qwen Code (Alibaba) | 🧪 experimental | ✅ | ✅ | ✅ | ✅ |
 | Tongyi Lingma (Alibaba) | 🧪 experimental | manual ⁵ | manual ² | ✅ ³ | ✅ |
 | Trae / Trae CN (ByteDance) | 🧪 experimental | manual ⁵ | manual ² | via rules | — |
-| GitHub Copilot (CLI and app) | 🧪 experimental | ✅ | ✅ | via rules | — |
+| GitHub Copilot (CLI, app and VS Code) | 🧪 experimental | ✅ | ✅ | via rules | — |
+| Cline (CLI and VS Code / Cursor / Windsurf extension) | 🧪 experimental | ✅ | ✅ | via rules | — |
+| Kilo Code | 🧪 experimental | ✅ ⁶ | ✅ | via rules | — |
+| iFlow CLI | 🧪 experimental | ✅ | ✅ | via rules | — |
 | Windsurf | 🧪 experimental | ✅ | ✅ | via rules | — |
 | Kiro | 🧪 experimental | ✅ | ✅ | via rules | — |
 | OpenCode | 🧪 experimental | ✅ | ✅ | via rules | — |
@@ -112,6 +116,7 @@ The pack is built per agent, ordered by what matters for the job, and capped (ab
 ³ These tools ignore output from a session-start hook, so the handoff is injected with your first message in each session (once).<br>
 ⁴ Gemini CLI: type `/hooks` to check that Hotseat's hooks are enabled.<br>
 ⁵ These tools only add MCP servers in their UI; `hotseat init` prints the JSON to paste.<br>
+⁶ If `~/.config/kilo/kilo.jsonc` has comments, Hotseat leaves it alone and prints the snippet to paste.<br>
 "Via rules": no hook, so the rules tell the agent to call `hotseat.get_context` itself when a session starts.
 
 Your tool isn't listed? [Open an issue](../../issues). An adapter is one file.

@@ -24,6 +24,10 @@ export const AGENT_IDS = [
   "kimi",
   "gemini",
   "opencode",
+  "qwen",
+  "iflow",
+  "cline",
+  "kilo",
   "human",
   "unknown",
 ] as const;

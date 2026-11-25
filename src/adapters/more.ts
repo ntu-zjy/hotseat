@@ -1,11 +1,12 @@
 // 第二批适配器（2026-11-24）：先按官方文档、本机程序实现，实测前一律标为实验性。
 // 依据见每个工具上方的注释；PRD §8.1 的调研表是起点，🟡 的地方以这里注释为准，实测后再改。
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { Adapter, AdapterContext } from "../contracts/adapter.ts";
 import { mcpServerEntry } from "../contracts/adapter.ts";
 import type { AgentId } from "../contracts/common.ts";
 import { HOOK_LIMITS } from "../contracts/hooks.ts";
-import { homeJoin, makeAdapter } from "./generic.ts";
+import { editorUserDirs, homeJoin, makeAdapter, pickFiles } from "./generic.ts";
 
 /** 不带 type 字段的 mcpServers 条目（有些工具的配置校验不认 type） */
 const plainEntry = (bin: string, agent: AgentId) => ({ command: bin, args: ["mcp"], env: { HOTSEAT_AGENT: agent } });
@@ -121,8 +122,9 @@ const gemini = makeAdapter({
   },
 });
 
-// GitHub Copilot CLI / 桌面 App：~/.copilot/mcp-config.json（type 为 local，tools 默认全开），
-// 用户级指令 ~/.copilot/copilot-instructions.md。Hook 还在预览，暂不写入。
+// GitHub Copilot CLI / 桌面 App / VS Code：~/.copilot/mcp-config.json（type 为 local，tools 默认全开），
+// 用户级指令 ~/.copilot/copilot-instructions.md。VS Code 的 Copilot 现在也读这两个位置（Copilot harness，
+// 见 code.visualstudio.com/docs/agents/reference/custom-instructions-reference）。Hook 还在预览，暂不写入。
 const copilot = makeAdapter({
   id: "copilot",
   displayName: "GitHub Copilot",
@@ -130,7 +132,7 @@ const copilot = makeAdapter({
   hookFamily: null,
   maxContextChars: 8000,
   detect: (c) => [join(c.home, ".copilot")],
-  notes: ["写入的是 Copilot CLI 和桌面 App 的配置；VS Code 里的 Copilot 用 .vscode/mcp.json，需另行添加"],
+  notes: ["Copilot CLI、桌面 App 和 VS Code 里的 Copilot 共用这份配置"],
   mcp: { kind: "json", file: homeJoin(".copilot", "mcp-config.json"), key: "mcpServers", entry: (bin, agent) => ({ type: "local", command: bin, args: ["mcp"], env: { HOTSEAT_AGENT: agent }, tools: ["*"] }) },
   rules: { kind: "block", file: homeJoin(".copilot", "copilot-instructions.md") },
 });
@@ -172,6 +174,70 @@ const opencode = makeAdapter({
   rules: { kind: "block", file: homeJoin(".config", "opencode", "AGENTS.md") },
 });
 
+// ---------- 第三批（2026-11-25） ----------
+
+// Qwen Code（阿里通义，基于 Gemini CLI）：~/.qwen/settings.json 的 mcpServers 和 hooks（Claude Code 格式：
+// SessionStart 的 additionalContext 注入，Stop 用 decision: block + reason，有 stop_hook_active，timeout 单位秒）；
+// 用户级 Hook 不需要信任确认。全局上下文文件 ~/.qwen/QWEN.md。依据 qwenlm.github.io/qwen-code-docs（hooks、settings）。
+const qwen = makeAdapter({
+  id: "qwen",
+  displayName: "Qwen Code",
+  tier: "A",
+  hookFamily: "claude",
+  maxContextChars: 9500,
+  detect: (c) => [join(c.home, ".qwen")],
+  mcp: { kind: "json", file: homeJoin(".qwen", "settings.json"), key: "mcpServers", entry: plainEntry },
+  rules: { kind: "block", file: homeJoin(".qwen", "QWEN.md") },
+  hooks: { kind: "json", file: homeJoin(".qwen", "settings.json"), events: { SessionStart: "session-start", Stop: "stop" } },
+});
+
+// iFlow CLI（心流）：~/.iflow/settings.json 的 mcpServers，全局上下文 ~/.iflow/IFLOW.md（platform.iflow.cn 文档）。
+// 它的 Stop 只在整个会话结束时触发、文档没说会话开始 Hook 的输出会不会进上下文，所以暂不写 Hook，靠规则接手。
+const iflow = makeAdapter({
+  id: "iflow",
+  displayName: "iFlow CLI",
+  tier: "C",
+  hookFamily: null,
+  maxContextChars: 8000,
+  detect: (c) => [join(c.home, ".iflow")],
+  mcp: { kind: "json", file: homeJoin(".iflow", "settings.json"), key: "mcpServers", entry: plainEntry },
+  rules: { kind: "block", file: homeJoin(".iflow", "IFLOW.md") },
+});
+
+// Cline（CLI 和 VS Code / Cursor / Windsurf 扩展）：MCP 在 cline_mcp_settings.json 的 mcpServers——
+// CLI 是 ~/.cline/data/settings/（可用 CLINE_MCP_SETTINGS_PATH 改），扩展在编辑器的 globalStorage/saoudrizwan.claude-dev/settings/；
+// 全局规则目录 ~/.cline/rules/（docs.cline.bot：customization/cline-rules、mcp/mcp-overview）。
+// Cline 的 Hook 现在要写成 SDK 插件（JS），暂不做。
+const clineMcpFiles = (c: AdapterContext) => [
+  c.env.CLINE_MCP_SETTINGS_PATH ?? join(c.home, ".cline", "data", "settings", "cline_mcp_settings.json"),
+  ...editorUserDirs(c).map((d) => join(d, "globalStorage", "saoudrizwan.claude-dev", "settings", "cline_mcp_settings.json")),
+];
+const cline = makeAdapter({
+  id: "cline",
+  displayName: "Cline",
+  tier: "C",
+  hookFamily: null,
+  maxContextChars: 8000,
+  detect: (c) => [join(c.home, ".cline"), ...editorUserDirs(c).map((d) => join(d, "globalStorage", "saoudrizwan.claude-dev"))],
+  mcp: { kind: "json", file: clineMcpFiles, key: "mcpServers", entry: (bin, agent) => ({ ...plainEntry(bin, agent), disabled: false }) },
+  rules: { kind: "block", file: homeJoin(".cline", "rules", "hotseat.md") },
+});
+
+// Kilo Code（v7.0.33 起，扩展和 CLI 共用 ~/.config/kilo/kilo.jsonc，格式同 OpenCode）：MCP 在 mcp 键下；
+// 全局规则是 instructions 数组里列出的文件（kilo.ai/docs：automate/mcp、customize/custom-rules）。
+// 带注释的 jsonc 不自动改，init 给出要粘贴的片段。
+const kiloConfig = (c: AdapterContext) => pickFiles([join(c.home, ".config", "kilo", "kilo.jsonc"), join(c.home, ".config", "kilo", "kilo.json")]).find((p) => existsSync(p)) ?? join(c.home, ".config", "kilo", "kilo.jsonc");
+const kilo = makeAdapter({
+  id: "kilo",
+  displayName: "Kilo Code",
+  tier: "C",
+  hookFamily: null,
+  maxContextChars: 8000,
+  detect: (c) => [join(c.home, ".config", "kilo"), join(c.home, ".kilocode")],
+  mcp: { kind: "json", file: kiloConfig, key: "mcp", entry: (bin, agent) => ({ type: "local", command: [bin, "mcp"], environment: { HOTSEAT_AGENT: agent }, enabled: true }) },
+  rules: { kind: "listed", file: homeJoin(".config", "kilo", "hotseat-rules.md"), config: kiloConfig, key: "instructions" },
+});
+
 export const MORE_ADAPTERS: readonly Adapter[] = [
   workbuddy,
   codebuddy,
@@ -185,4 +251,8 @@ export const MORE_ADAPTERS: readonly Adapter[] = [
   windsurf,
   kiro,
   opencode,
+  qwen,
+  iflow,
+  cline,
+  kilo,
 ];

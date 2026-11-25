@@ -252,6 +252,72 @@ test("第二批 12 个工具：init 写入、manual 步骤、Hook 各自格式�
   }
 });
 
+test("第三批：Qwen Code Hook、Cline 写 CLI 和扩展两处、Kilo 的 instructions、带注释的 jsonc 改为手动、uninstall 逐字节还原", () => {
+  const { home, project, env } = sandbox();
+  const vscodeUser = process.platform === "darwin" ? join(home, "Library", "Application Support", "Code", "User") : join(home, ".config", "Code", "User");
+  const clineExt = join(vscodeUser, "globalStorage", "saoudrizwan.claude-dev", "settings", "cline_mcp_settings.json");
+  const files: Record<string, string> = {
+    ".qwen/settings.json": `${JSON.stringify({ model: { name: "qwen3-coder-plus" } }, null, 2)}\n`,
+    ".iflow/settings.json": `${JSON.stringify({ theme: "dark", mcpServers: { fetch: { command: "uvx", args: ["mcp-server-fetch"] } } }, null, 2)}\n`,
+    ".cline/data/settings/cline_mcp_settings.json": `${JSON.stringify({ mcpServers: {} }, null, 2)}\n`,
+    ".config/kilo/kilo.jsonc": `${JSON.stringify({ $schema: "https://app.kilo.ai/config.json", instructions: ["~/notes/style.md"] }, null, 2)}\n`,
+  };
+  for (const [f, text] of Object.entries(files)) {
+    mkdirSync(join(home, f, ".."), { recursive: true });
+    writeFileSync(join(home, f), text);
+  }
+  mkdirSync(join(clineExt, ".."), { recursive: true });
+  writeFileSync(clineExt, JSON.stringify({ mcpServers: { github: { command: "gh-mcp" } } }, null, 2));
+  const clineExtText = readFileSync(clineExt, "utf8");
+
+  const r = cli(env, ["init", "--yes"]);
+  assert.equal(r.code, 0, r.out + r.err);
+  for (const name of ["Qwen Code", "iFlow CLI", "Cline", "Kilo Code"]) assert.match(r.out, new RegExp(`- ${name}：已检测到（实验性）`), name);
+  const bin = join(home, "Hotseat", ".hotseat", "bin", "hotseat");
+  const qwen = readJson(join(home, ".qwen", "settings.json"));
+  assert.equal(qwen.model.name, "qwen3-coder-plus");
+  assert.deepEqual(qwen.mcpServers.hotseat, { command: bin, args: ["mcp"], env: { HOTSEAT_AGENT: "qwen" } });
+  assert.match(readFileSync(join(home, ".qwen", "QWEN.md"), "utf8"), /Hotseat 共享上下文/);
+  assert.ok(readJson(join(home, ".iflow", "settings.json")).mcpServers.fetch);
+  assert.match(readFileSync(join(home, ".iflow", "IFLOW.md"), "utf8"), /Hotseat 共享上下文/);
+  // Cline：CLI 和 VS Code 扩展两处都写
+  assert.equal(readJson(join(home, ".cline", "data", "settings", "cline_mcp_settings.json")).mcpServers.hotseat.env.HOTSEAT_AGENT, "cline");
+  assert.equal(readJson(clineExt).mcpServers.hotseat.disabled, false);
+  assert.ok(readJson(clineExt).mcpServers.github);
+  assert.match(readFileSync(join(home, ".cline", "rules", "hotseat.md"), "utf8"), /hotseat:begin/);
+  // Kilo：mcp 键 + instructions 数组追加 Hotseat 的规则文件
+  const kilo = readJson(join(home, ".config", "kilo", "kilo.jsonc"));
+  assert.deepEqual(kilo.mcp.hotseat.command, [bin, "mcp"]);
+  assert.deepEqual(kilo.instructions, ["~/notes/style.md", join(home, ".config", "kilo", "hotseat-rules.md")]);
+
+  const doc = cli(env, ["doctor"]);
+  assert.equal(doc.code, 0, doc.out);
+  assert.doesNotMatch(doc.out, /✗/);
+
+  execFileSync("git", ["init", "-q", project]);
+  assert.equal(cli(env, ["new", "Login refresh", "--goal", "登录过期后自动刷新"], { cwd: project }).code, 0);
+  const start = JSON.parse(sh(env, qwen.hooks.SessionStart[0].hooks[0].command, { session_id: "q1", cwd: project, hook_event_name: "SessionStart", source: "startup" }, project));
+  assert.match(start.hookSpecificOutput.additionalContext, /你是 qwen。/);
+  writeFileSync(join(project, "login.tsx"), "export {}\n");
+  const stop = JSON.parse(sh(env, qwen.hooks.Stop[0].hooks[0].command, { session_id: "q1", cwd: project, hook_event_name: "Stop", stop_hook_active: false }, project));
+  assert.equal(stop.decision, "block");
+  assert.match(stop.reason, /login\.tsx/);
+
+  const un = cli(env, ["uninstall", "--yes"]);
+  assert.equal(un.code, 0, un.out + un.err);
+  for (const [f, text] of Object.entries(files)) assert.equal(readFileSync(join(home, f), "utf8"), text, f);
+  assert.equal(readFileSync(clineExt, "utf8"), clineExtText);
+  for (const f of [".qwen/QWEN.md", ".iflow/IFLOW.md", ".cline/rules/hotseat.md", ".config/kilo/hotseat-rules.md"]) assert.equal(existsSync(join(home, f)), false, f);
+
+  // 带注释的 jsonc：不改文件，给出手动步骤
+  const commented = '{\n  // 我的设置\n  "model": "kilo/auto",\n}\n';
+  writeFileSync(join(home, ".config", "kilo", "kilo.jsonc"), commented);
+  const again = cli(env, ["init", "--yes", "--only", "kilo"]);
+  assert.equal(again.code, 0, again.out + again.err);
+  assert.match(again.out, /带注释或不是标准 JSON/);
+  assert.equal(readFileSync(join(home, ".config", "kilo", "kilo.jsonc"), "utf8"), commented);
+});
+
 async function mcpClient(env: NodeJS.ProcessEnv, agent: string, cwd: string) {
   const client = new Client({ name: "e2e", version: "0" });
   await client.connect(new StdioClientTransport({ command: process.execPath, args: ["--no-warnings", BUNDLE, "mcp"], env: { ...(env as Record<string, string>), HOTSEAT_AGENT: agent }, cwd, stderr: "pipe" }));

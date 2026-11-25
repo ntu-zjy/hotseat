@@ -67,6 +67,10 @@ export const AGENT_HOOK_FAMILY: Record<AgentIdT, HookFamily | null> = {
   kimi: "kimi",
   gemini: "gemini",
   opencode: null,
+  qwen: "claude",
+  iflow: null,
+  cline: null,
+  kilo: null,
   human: null,
   unknown: null,
 };

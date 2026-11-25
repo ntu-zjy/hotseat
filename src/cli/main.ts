@@ -38,7 +38,8 @@ const HELP = `Hotseat ${VERSION} — 多个 AI Agent 轮流接手同一个任务
   init [--only claude,agy] [--dry-run] [--yes] [--no-hooks] [--lang zh|en]
                          检测本机的 AI 工具，写入 MCP、规则和 Hook（会先展示改动并备份）
                          支持：claude、agy、codex、cursor、qoder-cn、qoder、workbuddy、codebuddy、kimi、
-                         lingma、trae、trae-cn、gemini、copilot、windsurf、kiro、opencode
+                         lingma、trae、trae-cn、gemini、copilot、windsurf、kiro、opencode、qwen、iflow、
+                         cline、kilo
   doctor                 检查各工具的接入是否还在
   uninstall [--yes]      按标记移除 Hotseat 写入的所有配置（任务数据保留）
   rules                  打印规则片段，给只能在设置里填规则的工具（Cursor、Trae、通义灵码）手动粘贴

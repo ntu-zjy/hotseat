@@ -6,7 +6,7 @@
 
 **换个 AI Agent 接着干，它已经什么都知道了。**
 
-一条命令，让 Claude Code、Codex、Cursor、WorkBuddy、Kimi Code、Qoder、通义灵码等 17 个 Agent 共用同一份本地任务上下文。<br>
+一条命令，让 Claude Code、Codex、Cursor、WorkBuddy、Kimi Code、Qwen Code、Qoder、通义灵码等 21 个 Agent 共用同一份本地任务上下文。<br>
 不用再说「总结一下」，也不用再说「先读一下文件夹」。
 
 [English](README.md) · 简体中文
@@ -97,9 +97,13 @@ npx hotseat init
 | CodeBuddy Code（腾讯） | 🧪 实验性 | ✅ | ✅ | ✅ | ✅ |
 | Kimi Code（月之暗面） | 🧪 实验性 | ✅ | ✅ | ✅ ³ | ✅ |
 | Gemini CLI | 🧪 实验性 | ✅ | ✅ | ✅ ⁴ | ✅ ⁴ |
+| Qwen Code（阿里通义） | 🧪 实验性 | ✅ | ✅ | ✅ | ✅ |
 | 通义灵码（阿里） | 🧪 实验性 | 手动 ⁵ | 手动 ² | ✅ ³ | ✅ |
 | Trae / Trae CN（字节跳动） | 🧪 实验性 | 手动 ⁵ | 手动 ² | 靠规则 | — |
-| GitHub Copilot（CLI 和 App） | 🧪 实验性 | ✅ | ✅ | 靠规则 | — |
+| GitHub Copilot（CLI、App 和 VS Code） | 🧪 实验性 | ✅ | ✅ | 靠规则 | — |
+| Cline（CLI 和 VS Code / Cursor / Windsurf 扩展） | 🧪 实验性 | ✅ | ✅ | 靠规则 | — |
+| Kilo Code | 🧪 实验性 | ✅ ⁶ | ✅ | 靠规则 | — |
+| iFlow CLI（心流） | 🧪 实验性 | ✅ | ✅ | 靠规则 | — |
 | Windsurf | 🧪 实验性 | ✅ | ✅ | 靠规则 | — |
 | Kiro | 🧪 实验性 | ✅ | ✅ | 靠规则 | — |
 | OpenCode | 🧪 实验性 | ✅ | ✅ | 靠规则 | — |
@@ -110,6 +114,7 @@ npx hotseat init
 ³ 这些工具不采用会话开始 Hook 的输出，所以在每个会话的第一条消息时注入交接（只注入一次）。<br>
 ⁴ Gemini CLI：输入 `/hooks` 确认 Hotseat 的 Hook 已启用。<br>
 ⁵ 这些工具只能在界面里添加 MCP 服务，`hotseat init` 会打印要粘贴的 JSON。<br>
+⁶ `~/.config/kilo/kilo.jsonc` 里有注释时，Hotseat 不改它，会打印要粘贴的片段。<br>
 「靠规则」：没有 Hook，由规则让 Agent 在会话开始时自己调用 `hotseat.get_context`。
 
 没有你用的工具？[提个 issue](../../issues)。一个适配器就是一个文件。

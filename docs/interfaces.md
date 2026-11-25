@@ -829,6 +829,14 @@ agy 的规则片段单独写成 `~/.gemini/config/rules/hotseat.md`，MCP 条目
 | Windsurf | `~/.codeium/windsurf/mcp_config.json` | `~/.codeium/windsurf/memories/global_rules.md` | — | — |
 | Kiro | `~/.kiro/settings/mcp.json` | `~/.kiro/steering/hotseat.md` | — | — |
 | OpenCode | `~/.config/opencode/opencode.json` 的 `mcp`（`type: "local"`、`command` 是数组、`environment`） | `~/.config/opencode/AGENTS.md` | — | — |
+| Qwen Code（第三批） | `~/.qwen/settings.json`，条目不带 `type` | `~/.qwen/QWEN.md` | 同 settings.json：SessionStart、Stop（timeout 单位秒，用户级不需要信任确认） | Claude |
+| iFlow CLI | `~/.iflow/settings.json` | `~/.iflow/IFLOW.md` | 暂不写（Stop 只在整个会话结束时触发） | — |
+| Cline | CLI：`~/.cline/data/settings/cline_mcp_settings.json`（`CLINE_MCP_SETTINGS_PATH`）；扩展：各编辑器 `User/globalStorage/saoudrizwan.claude-dev/settings/` 下的同名文件，目录存在的都写 | `~/.cline/rules/hotseat.md` | 暂不写（要写成 SDK 插件） | — |
+| Kilo Code | `~/.config/kilo/kilo.jsonc`（或 `kilo.json`）的 `mcp`，格式同 OpenCode；带注释时改为手动 | `~/.config/kilo/hotseat-rules.md`，并把路径加进 `instructions` 数组 | — | — |
+
+GitHub Copilot 的 `~/.copilot` 现在也是 VS Code 里 Copilot 的配置位置（Copilot harness），所以 VS Code 不单独做适配器。Roo Code 已于 2026-05-15 停止服务，不做。
+
+**卸载时的空对象**：原文件里本来就是空对象的键（例如 Cline 默认的 `"mcpServers": {}`），去掉 Hotseat 的条目后保留；判断依据是 Hotseat 第一次修改这个文件前留下的最早一份备份。
 
 检测只看用户主目录下各工具自己的目录。`~/.gemini` 也是 Antigravity 的目录，所以 Gemini CLI 只按 `settings.json`、`oauth_creds.json`、`google_accounts.json`、`tmp/` 判断。卸载时，Hotseat 新建的文件去掉自己的内容后为空就删除，原有文件逐字节还原。
 
