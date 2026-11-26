@@ -11,7 +11,11 @@
 
 [English](README.md) · 简体中文
 
-https://github.com/user-attachments/assets/83faeab8-de07-4dc1-8741-dad0870de4ac
+
+
+https://github.com/user-attachments/assets/017ad0bd-e75d-4b22-9afd-018cc9c1e04c
+
+
 
 ▶ [看完整视频（72 秒，有配音和配乐）](https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-zh.mp4) · [English](https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-en.mp4)
 
