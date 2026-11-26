@@ -11,15 +11,7 @@ No more "summarize what you did" and "read the folder first".
 
 English · [简体中文](README.zh-CN.md)
 
-<a href="https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-en.mp4"><img src="docs/media/hotseat-demo-en.gif" width="800" alt="Run npx hotseat init, switch from Claude to Antigravity, type “continue”: it picks up exactly where Claude stopped"></a>
-
-
-
-
 https://github.com/user-attachments/assets/346c380a-d7b8-4623-b454-60d136abecd2
-
-
-
 
 ▶ [Watch the full demo with sound](https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-en.mp4) (77 s) · [中文版](https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-zh.mp4)
 
