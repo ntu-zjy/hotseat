@@ -12,3 +12,4 @@ taskos_*.md
 # 营销素材：只公开品牌图标；样片、音频、导出视频、草稿留在本地（完整视频放在 GitHub Release）
 docs/marketing/*
 !docs/marketing/brand/
+*.tgz

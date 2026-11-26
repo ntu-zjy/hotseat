@@ -281,7 +281,7 @@ export function buildPack(input: PackInput): PackResult {
   // ----- 组装 -----
   const last = progress[progress.length - 1];
   const header = [
-    `# ${t.title} · ${input.task.name}（${input.task.slug}）`,
+    lang === "en" ? `# ${t.title} · ${input.task.name} (${input.task.slug})` : `# ${t.title} · ${input.task.name}（${input.task.slug}）`,
     `> ${t.you(input.agent)}${last ? t.last(last.agent, shortTime(last.time)) : t.none}${input.origin === "hook" ? t.hook : t.tool}`,
   ].join("\n");
   const footer = input.pendingProposals > 0 ? `> ${t.pending(input.pendingProposals)}` : "";
