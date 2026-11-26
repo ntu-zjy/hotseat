@@ -14,15 +14,20 @@ const plainEntry = (bin: string, agent: AgentId) => ({ command: bin, args: ["mcp
 
 // ---------- 国内：会话开始自动注入 + 收工检查 ----------
 
-// WorkBuddy（腾讯，基于 CodeBuddy 引擎）：~/.workbuddy/mcp.json、settings.json 里 Claude Code 风格的 Hook、CODEBUDDY.md。
+// WorkBuddy（腾讯，内置 CodeBuddy 引擎 @genie/agent-cli）：配置目录 ~/.workbuddy（WORKBUDDY_CONFIG_DIR）。
+// MCP 写两处（2026-11-26 用 WorkBuddy 5.11.3 核对）：桌面 App 只认自己的 ~/.workbuddy/mcp.json（界面里的「自定义 MCP」，
+// 由守护进程用 --mcp-config --strict-mcp-config 传给引擎，首次要用户在面板里点「信任」才会加载）；单独跑引擎（命令行）时读 ~/.workbuddy/.mcp.json。
+// settings.json 里 Claude Code 风格的 Hook，全局记忆 CODEBUDDY.md。
 const workbuddy = makeAdapter({
   id: "workbuddy",
   displayName: "WorkBuddy",
   tier: "A",
+  tested: true,
   hookFamily: "claude",
   maxContextChars: 9500,
   detect: (c) => [join(c.home, ".workbuddy")],
-  mcp: { kind: "json", file: homeJoin(".workbuddy", "mcp.json"), key: "mcpServers", entry: mcpServerEntry },
+  afterInstall: [text("完全退出 WorkBuddy 再打开，到「专家·技能·连接器 → 连接器 → 自定义连接器」里点 hotseat 后面的「信任」；不信任的话 WorkBuddy 不会加载它", "Quit WorkBuddy completely and reopen it, then go to Experts·Skills·Connectors → Connectors → Custom connectors and click Trust next to hotseat; WorkBuddy won't load it until you do")],
+  mcp: { kind: "json", file: (c) => [join(c.home, ".workbuddy", "mcp.json"), join(c.home, ".workbuddy", ".mcp.json")], key: "mcpServers", entry: mcpServerEntry },
   rules: { kind: "block", file: homeJoin(".workbuddy", "CODEBUDDY.md") },
   hooks: { kind: "json", file: homeJoin(".workbuddy", "settings.json"), events: { SessionStart: "session-start", Stop: "stop" } },
 });
@@ -69,6 +74,26 @@ const kimi = makeAdapter({
   mcp: { kind: "json", file: (c) => join(kimiDir(c), "mcp.json"), key: "mcpServers", entry: plainEntry },
   rules: { kind: "block", file: (c) => join(kimiDir(c), "AGENTS.md") },
   hooks: { kind: "toml", file: (c) => join(kimiDir(c), "config.toml"), events: { UserPromptSubmit: "prompt", Stop: "stop" } },
+});
+
+// Kimi 桌面版（3.2 起的 Kimi Work / Agent 模式）：内核就是 Kimi Code v2（daimon 的 config.json 里 agentKernel 为 kimi-code），
+// 只是数据目录在 App 自己的 daimon/runtime/kimi-code 下：home/ 是内核的 KIMI_CODE_HOME（mcp.json、全局 AGENTS.md），
+// 上一级的 config.toml 是 agentFile，但 App 每次启动都会按自己的设置重新生成它（日志里 sync=updated），写进去的 [[hooks]] 会被清掉，
+// 所以不写 Hook：只接 MCP 和全局规则，Agent 按规则自己调用 get_context（2026-11-25 用 Kimi 3.2.27 实测接力通过）。
+const kimiDesktopDir = (c: AdapterContext) =>
+  join(c.platform === "darwin" ? join(c.home, "Library", "Application Support") : c.platform === "win32" ? (c.env.APPDATA ?? join(c.home, "AppData", "Roaming")) : (c.env.XDG_CONFIG_HOME ?? join(c.home, ".config")), "kimi-desktop", "daimon-share", "daimon", "runtime", "kimi-code");
+const kimiDesktop = makeAdapter({
+  id: "kimi-desktop",
+  displayName: "Kimi 桌面版",
+  displayNameEn: "Kimi Desktop",
+  tier: "B",
+  hookFamily: null,
+  tested: true,
+  maxContextChars: 9500,
+  detect: (c) => [kimiDesktopDir(c)],
+  afterInstall: [text("完全退出 Kimi 桌面版再打开；在 Work 模式里用「选择项目 → 使用现有文件夹」选项目文件夹，新对话会按规则自己拿交接", "Quit Kimi Desktop completely and reopen it; in Work mode use Select project → Use existing folder to pick your project folder, and new chats fetch the handoff following the rules")],
+  mcp: { kind: "json", file: (c) => join(kimiDesktopDir(c), "home", "mcp.json"), key: "mcpServers", entry: plainEntry },
+  rules: { kind: "block", file: (c) => join(kimiDesktopDir(c), "home", "AGENTS.md") },
 });
 
 // ---------- 国内 IDE ----------
@@ -244,6 +269,7 @@ export const MORE_ADAPTERS: readonly Adapter[] = [
   workbuddy,
   codebuddy,
   kimi,
+  kimiDesktop,
   qoder,
   lingma,
   trae("trae-cn", "Trae CN", ".trae-cn"),

@@ -198,7 +198,7 @@ test("第二批 12 个工具：init 写入、manual 步骤、Hook 各自格式�
   const r = cli(env, ["init", "--yes"]);
   assert.equal(r.code, 0, r.out + r.err);
   for (const name of ["WorkBuddy", "CodeBuddy", "Kimi Code", "Qoder", "通义灵码", "Trae CN", "Trae", "Gemini CLI", "GitHub Copilot", "Windsurf", "Kiro", "OpenCode"]) {
-    assert.match(r.out, new RegExp(`- ${name}：已检测到（实验性）`), name);
+    assert.match(r.out, new RegExp(`- ${name}：已检测到`), name);
   }
   assert.match(r.out, /需要手动添加 MCP 服务/); // Trae、通义灵码只能在界面里添加
   assert.match(r.out, /在 Gemini CLI 里输入 \/hooks|Gemini CLI 里输入 \/hooks/);
@@ -206,7 +206,8 @@ test("第二批 12 个工具：init 写入、manual 步骤、Hook 各自格式�
 
   // 各自的配置格式
   assert.equal(readJson(join(home, ".workbuddy", "settings.json")).model, "hunyuan-t1");
-  assert.equal(readJson(join(home, ".workbuddy", "mcp.json")).mcpServers.hotseat.env.HOTSEAT_AGENT, "workbuddy");
+  assert.equal(readJson(join(home, ".workbuddy", ".mcp.json")).mcpServers.hotseat.env.HOTSEAT_AGENT, "workbuddy");
+  assert.equal(readJson(join(home, ".workbuddy", "mcp.json")).mcpServers.hotseat.env.HOTSEAT_AGENT, "workbuddy"); // 桌面 App 读这份
   assert.match(readFileSync(join(home, ".workbuddy", "CODEBUDDY.md"), "utf8"), /Hotseat 共享上下文/);
   assert.ok(readJson(join(home, ".codebuddy", ".mcp.json")).mcpServers.other);
   const kimiToml = readFileSync(join(home, ".kimi-code", "config.toml"), "utf8");
@@ -251,7 +252,7 @@ test("第二批 12 个工具：init 写入、manual 步骤、Hook 各自格式�
   const un = cli(env, ["uninstall", "--yes"]);
   assert.equal(un.code, 0, un.out + un.err);
   for (const [f, text] of Object.entries(files)) assert.equal(readFileSync(join(home, f), "utf8"), text, f);
-  for (const f of [".workbuddy/mcp.json", ".workbuddy/CODEBUDDY.md", ".codebuddy/settings.json", ".codebuddy/CODEBUDDY.md", ".qoder/settings.json", ".qoder/AGENTS.md", ".kimi-code/mcp.json", ".gemini/GEMINI.md", ".copilot/mcp-config.json", ".copilot/copilot-instructions.md", ".codeium/windsurf/mcp_config.json", ".kiro/settings/mcp.json", ".kiro/steering/hotseat.md", ".config/opencode/AGENTS.md"]) {
+  for (const f of [".workbuddy/.mcp.json", ".workbuddy/mcp.json", ".workbuddy/CODEBUDDY.md", ".codebuddy/settings.json", ".codebuddy/CODEBUDDY.md", ".qoder/settings.json", ".qoder/AGENTS.md", ".kimi-code/mcp.json", ".gemini/GEMINI.md", ".copilot/mcp-config.json", ".copilot/copilot-instructions.md", ".codeium/windsurf/mcp_config.json", ".kiro/settings/mcp.json", ".kiro/steering/hotseat.md", ".config/opencode/AGENTS.md"]) {
     assert.equal(existsSync(join(home, f)), false, f);
   }
 });
@@ -276,7 +277,7 @@ test("第三批：Qwen Code Hook、Cline 写 CLI 和扩展两处、Kilo 的 inst
 
   const r = cli(env, ["init", "--yes"]);
   assert.equal(r.code, 0, r.out + r.err);
-  for (const name of ["Qwen Code", "iFlow CLI", "Cline", "Kilo Code"]) assert.match(r.out, new RegExp(`- ${name}：已检测到（实验性）`), name);
+  for (const name of ["Qwen Code", "iFlow CLI", "Cline", "Kilo Code"]) assert.match(r.out, new RegExp(`- ${name}：已检测到`), name);
   const bin = join(home, "Hotseat", ".hotseat", "bin", "hotseat");
   const qwen = readJson(join(home, ".qwen", "settings.json"));
   assert.equal(qwen.model.name, "qwen3-coder-plus");
@@ -359,10 +360,32 @@ test("Kimi Code 重写 config.toml 删掉注释标记后：不重复加 Hook，d
   assert.ok(left.startsWith(original));
 });
 
-test("英文界面：21 个工具全部检测到时，init、doctor、uninstall、help 的输出里没有中文", () => {
+test("Kimi 桌面版：MCP 和规则写进 App 自己的内核目录，不碰会被 App 重写的 config.toml，uninstall 逐字节还原", () => {
+  const { home, env } = sandbox();
+  const root = process.platform === "darwin" ? join(home, "Library", "Application Support", "kimi-desktop") : join(home, ".config", "kimi-desktop");
+  const kernel = join(root, "daimon-share", "daimon", "runtime", "kimi-code");
+  mkdirSync(join(kernel, "home"), { recursive: true });
+  const toml = 'default_model = "k3-agent"\n\n[models.k3-agent]\nprovider = "daimon-kimi-code"\n';
+  const mcp = '{"mcpServers":{}}\n';
+  writeFileSync(join(kernel, "config.toml"), toml);
+  writeFileSync(join(kernel, "home", "mcp.json"), mcp);
+  const r = cli(env, ["init", "--only", "kimi-desktop", "--yes"]);
+  assert.equal(r.code, 0, r.out + r.err);
+  assert.match(r.out, /- Kimi 桌面版：已检测到\n/); // 实测过，不标实验性
+  const bin = join(home, "Hotseat", ".hotseat", "bin", "hotseat");
+  assert.deepEqual(readJson(join(kernel, "home", "mcp.json")).mcpServers.hotseat, { command: bin, args: ["mcp"], env: { HOTSEAT_AGENT: "kimi-desktop" } });
+  assert.match(readFileSync(join(kernel, "home", "AGENTS.md"), "utf8"), /Hotseat 共享上下文/);
+  assert.equal(readFileSync(join(kernel, "config.toml"), "utf8"), toml);
+  assert.equal(cli(env, ["doctor"]).code, 0);
+  assert.equal(cli(env, ["uninstall", "--yes"]).code, 0);
+  assert.equal(readFileSync(join(kernel, "home", "mcp.json"), "utf8"), mcp);
+  assert.equal(existsSync(join(kernel, "home", "AGENTS.md")), false);
+});
+
+test("英文界面：所有工具都检测到时，init、doctor、uninstall、help 的输出里没有中文", () => {
   const { home, env } = sandbox();
   const enEnv = { ...env, LANG: "en_US.UTF-8" };
-  const dirs = [".claude", ".gemini/config", ".codex", ".cursor", ".qoder-cn", ".qoder", ".workbuddy", ".codebuddy", ".kimi-code", ".lingma", ".trae", ".trae-cn", ".gemini/tmp", ".copilot", ".codeium/windsurf", ".kiro", ".config/opencode", ".qwen", ".iflow", ".cline", ".config/kilo"];
+  const dirs = [".claude", ".gemini/config", ".codex", ".cursor", ".qoder-cn", ".qoder", ".workbuddy", ".codebuddy", ".kimi-code", ".lingma", ".trae", ".trae-cn", ".gemini/tmp", ".copilot", ".codeium/windsurf", ".kiro", ".config/opencode", ".qwen", ".iflow", ".cline", ".config/kilo", process.platform === "darwin" ? "Library/Application Support/kimi-desktop/daimon-share/daimon/runtime/kimi-code" : ".config/kimi-desktop/daimon-share/daimon/runtime/kimi-code"];
   for (const d of dirs) mkdirSync(join(home, d), { recursive: true });
   const cjk = /[\u4e00-\u9fff]/;
   const noChinese = (label: string, out: string) => {
@@ -372,7 +395,8 @@ test("英文界面：21 个工具全部检测到时，init、doctor、uninstall�
 
   const dry = cli(enEnv, ["init", "--dry-run"]);
   assert.equal(dry.code, 0, dry.out + dry.err);
-  assert.equal(dry.out.match(/: detected/g)?.length, 21, dry.out);
+  assert.equal(dry.out.match(/: detected/g)?.length, 22, dry.out);
+  assert.match(dry.out, /Kimi Desktop: detected/);
   assert.match(dry.out, /Tongyi Lingma: detected \(experimental\)/);
   assert.match(dry.out, /→ Open Lingma → Personal Settings → MCP Services → Add manually and paste the JSON above/);
   assert.doesNotMatch(dry.out, /will be deleted/); // 手动步骤不是删除文件

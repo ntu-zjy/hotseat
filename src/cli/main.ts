@@ -39,7 +39,7 @@ const HELP: Record<Lang, string> = {
   init [--only claude,agy] [--dry-run] [--yes] [--no-hooks] [--lang zh|en]
                          检测本机的 AI 工具，写入 MCP、规则和 Hook（会先展示改动并备份）
                          支持：claude、agy、codex、cursor、qoder-cn、qoder、workbuddy、codebuddy、kimi、
-                         lingma、trae、trae-cn、gemini、copilot、windsurf、kiro、opencode、qwen、iflow、
+                         kimi-desktop、lingma、trae、trae-cn、gemini、copilot、windsurf、kiro、opencode、qwen、iflow、
                          cline、kilo
   doctor                 检查各工具的接入是否还在
   uninstall [--yes]      按标记移除 Hotseat 写入的所有配置（任务数据保留）
@@ -69,7 +69,7 @@ Setup
                          Detect the AI tools on this machine and add Hotseat's MCP server, rules and hooks
                          (shows the changes and makes backups first)
                          Supported: claude, agy, codex, cursor, qoder-cn, qoder, workbuddy, codebuddy, kimi,
-                         lingma, trae, trae-cn, gemini, copilot, windsurf, kiro, opencode, qwen, iflow,
+                         kimi-desktop, lingma, trae, trae-cn, gemini, copilot, windsurf, kiro, opencode, qwen, iflow,
                          cline, kilo
   doctor                 Check that every connected tool is still set up
   uninstall [--yes]      Remove everything Hotseat wrote, found by its markers (task data stays)

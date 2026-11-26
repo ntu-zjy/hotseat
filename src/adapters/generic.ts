@@ -18,6 +18,8 @@ export interface AgentSpec {
   id: AgentId;
   displayName: string;
   displayNameEn?: string;
+  /** 在真实工具里测过接力的，init 不再标实验性 */
+  tested?: boolean;
   tier: Tier;
   hookFamily: HookFamily | null;
   maxContextChars: number;
@@ -143,14 +145,15 @@ export function pickFiles(paths: string | string[]): string[] {
  * 这个文件在 Hotseat 第一次改它之前的内容（从最早的一份备份里找）。
  * 返回 null：没有备份（文件是 Hotseat 新建的），或者最早的备份里已经有 Hotseat 的条目（也说明是 Hotseat 建的）。
  */
-function originalJson(ctx: Ctx, file: string): Json | null {
+function originalJson(ctx: Ctx, file: string): { text: string; data: Json } | null {
   try {
     const root = homePath(ctx.hotseatHome, "backups");
     for (const run of readdirSync(root).sort()) {
       const text = readTextOrNull(join(root, run, file.replace(/^\/+/, "")));
       if (text === null) continue;
       if (text.includes(`"${OWNERSHIP.mcpKey}"`) || text.includes(".hotseat/bin/hotseat")) return null;
-      return tryReadJson(join(root, run, file.replace(/^\/+/, "")))?.data ?? null;
+      const data = tryReadJson(join(root, run, file.replace(/^\/+/, "")))?.data;
+      return data ? { text, data } : null;
     }
   } catch {
     // 没有备份目录
@@ -184,7 +187,7 @@ export function makeAdapter(spec: AgentSpec): Adapter {
     displayName: spec.displayName,
     displayNameEn: spec.displayNameEn,
     tier: spec.tier,
-    experimental: true,
+    experimental: !spec.tested,
     hookFamily: spec.hookFamily,
     maxContextChars: spec.maxContextChars,
     afterInstall: spec.afterInstall,
@@ -272,10 +275,10 @@ export function makeAdapter(spec: AgentSpec): Adapter {
         const cur = state.get(file) ?? tryReadJson(file);
         if (!cur || cur.text === null) return;
         const orig = originalJson(ctx, file);
-        const next = keepEmptyKeys(change(cur.data), orig);
+        const next = keepEmptyKeys(change(cur.data), orig?.data ?? null);
         if (JSON.stringify(next) === JSON.stringify(cur.data)) return;
-        // Hotseat 新建的文件，去掉自己的内容后什么都不剩，就删掉
-        const after = Object.keys(next).length === 0 && !orig ? null : jsonText(next, cur.text);
+        // Hotseat 新建的文件，去掉自己的内容后什么都不剩，就删掉；和改之前内容一样，就把原文逐字节写回（例如压成一行的 JSON）
+        const after = Object.keys(next).length === 0 && !orig ? null : orig && JSON.stringify(next) === JSON.stringify(orig.data) ? orig.text : jsonText(next, cur.text);
         out.push({ agent: id, part, file, kind: "json-merge", summary, before: cur.text, after });
         state.set(file, { text: after, data: next });
       };

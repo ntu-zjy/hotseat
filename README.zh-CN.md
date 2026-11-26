@@ -87,8 +87,9 @@ npx hotseat init
 
 <table>
 <tr><td align="center" width="110"><img src="docs/media/agents/claude.png" width="52" height="52" alt=""><br><sub><b>Claude Code</b></sub><br><sub>✅</sub></td><td align="center" width="110"><img src="docs/media/agents/antigravity.png" width="52" height="52" alt=""><br><sub><b>Antigravity</b></sub><br><sub>✅</sub></td><td align="center" width="110"><img src="docs/media/agents/codex.png" width="52" height="52" alt=""><br><sub><b>Codex</b></sub><br><sub>✅</sub></td><td align="center" width="110"><img src="docs/media/agents/cursor.png" width="52" height="52" alt=""><br><sub><b>Cursor</b></sub><br><sub>✅</sub></td><td align="center" width="110"><img src="docs/media/agents/copilot.png" width="52" height="52" alt=""><br><sub><b>GitHub Copilot</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/gemini.png" width="52" height="52" alt=""><br><sub><b>Gemini CLI</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/windsurf.png" width="52" height="52" alt=""><br><sub><b>Windsurf</b></sub><br><sub>🧪</sub></td></tr>
-<tr><td align="center" width="110"><img src="docs/media/agents/kiro.png" width="52" height="52" alt=""><br><sub><b>Kiro</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/opencode.png" width="52" height="52" alt=""><br><sub><b>OpenCode</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/cline.png" width="52" height="52" alt=""><br><sub><b>Cline</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/kilo.png" width="52" height="52" alt=""><br><sub><b>Kilo Code</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/workbuddy.png" width="52" height="52" alt=""><br><sub><b>WorkBuddy</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/codebuddy.png" width="52" height="52" alt=""><br><sub><b>CodeBuddy</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/kimi.png" width="52" height="52" alt=""><br><sub><b>Kimi Code</b></sub><br><sub>🧪</sub></td></tr>
+<tr><td align="center" width="110"><img src="docs/media/agents/kiro.png" width="52" height="52" alt=""><br><sub><b>Kiro</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/opencode.png" width="52" height="52" alt=""><br><sub><b>OpenCode</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/cline.png" width="52" height="52" alt=""><br><sub><b>Cline</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/kilo.png" width="52" height="52" alt=""><br><sub><b>Kilo Code</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/workbuddy.png" width="52" height="52" alt=""><br><sub><b>WorkBuddy</b></sub><br><sub>✅</sub></td><td align="center" width="110"><img src="docs/media/agents/codebuddy.png" width="52" height="52" alt=""><br><sub><b>CodeBuddy</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/kimi.png" width="52" height="52" alt=""><br><sub><b>Kimi Code</b></sub><br><sub>🧪</sub></td></tr>
 <tr><td align="center" width="110"><img src="docs/media/agents/qwen.png" width="52" height="52" alt=""><br><sub><b>Qwen Code</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/qoder-intl.png" width="52" height="52" alt=""><br><sub><b>Qoder</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/qoder-cn.png" width="52" height="52" alt=""><br><sub><b>Qoder CN</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/lingma.png" width="52" height="52" alt=""><br><sub><b>通义灵码</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/trae.png" width="52" height="52" alt=""><br><sub><b>Trae</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/trae.png" width="52" height="52" alt=""><br><sub><b>Trae CN</b></sub><br><sub>🧪</sub></td><td align="center" width="110"><img src="docs/media/agents/iflow.png" width="52" height="52" alt=""><br><sub><b>iFlow CLI</b></sub><br><sub>🧪</sub></td></tr>
+<tr><td align="center" width="110"><img src="docs/media/agents/kimi.png" width="52" height="52" alt=""><br><sub><b>Kimi 桌面版</b></sub><br><sub>✅</sub></td></tr>
 </table>
 
 ✅ 已实测 · 🧪 实验性：按各工具官方文档实现，还没在真实工具里完整测过。各产品名称和图标归其所有者。
@@ -104,9 +105,10 @@ npx hotseat init
 | Cursor | ✅ 已实测 | ✅ | 手动 ² | ✅ | ✅ |
 | Qoder CN（桌面 App 和 CLI） | 🧪 实验性 | ✅ | ✅ | ✅ | ✅ |
 | Qoder（海外版） | 🧪 实验性 | ✅ | ✅ | ✅ | ✅ |
-| WorkBuddy（腾讯） | 🧪 实验性 | ✅ | ✅ | ✅ | ✅ |
+| WorkBuddy（腾讯） | ✅ 已实测 | ✅ ⁸ | ✅ | ✅ | ✅ |
 | CodeBuddy Code（腾讯） | 🧪 实验性 | ✅ | ✅ | ✅ | ✅ |
 | Kimi Code（月之暗面） | 🧪 实验性 | ✅ | ✅ | ✅ ³ | ✅ |
+| Kimi 桌面版（Work 模式） | ✅ 已实测 | ✅ | ✅ | 靠规则 ⁷ | — |
 | Gemini CLI | 🧪 实验性 | ✅ | ✅ | ✅ ⁴ | ✅ ⁴ |
 | Qwen Code（阿里通义） | 🧪 实验性 | ✅ | ✅ | ✅ | ✅ |
 | 通义灵码（阿里） | 🧪 实验性 | 手动 ⁵ | 手动 ² | ✅ ³ | ✅ |
@@ -126,6 +128,8 @@ npx hotseat init
 ⁴ Gemini CLI：输入 `/hooks` 确认 Hotseat 的 Hook 已启用。<br>
 ⁵ 这些工具只能在界面里添加 MCP 服务，`hotseat init` 会打印要粘贴的 JSON。<br>
 ⁶ `~/.config/kilo/kilo.jsonc` 里有注释时，Hotseat 不改它，会打印要粘贴的片段。<br>
+⁷ Kimi 桌面版每次启动都会重新生成内核的 `config.toml`，写进去的 Hook 会被清掉，所以只接 MCP 和规则：Agent 按规则自己调用 `get_context` 拿交接。在 Work 模式里用「选择项目 → 使用现有文件夹」打开项目文件夹。<br>
+⁸ WorkBuddy 第一次接入后，要到「专家·技能·连接器 → 连接器 → 自定义连接器」里点 hotseat 后面的「信任」，它才会加载 MCP。<br>
 「靠规则」：没有 Hook，由规则让 Agent 在会话开始时自己调用 `hotseat.get_context`。
 
 </details>

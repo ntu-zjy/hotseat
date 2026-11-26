@@ -22,6 +22,7 @@ export const AGENT_IDS = [
   "kiro",
   "windsurf",
   "kimi",
+  "kimi-desktop",
   "gemini",
   "opencode",
   "qwen",

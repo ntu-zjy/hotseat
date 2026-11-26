@@ -823,7 +823,8 @@ agy 的规则片段单独写成 `~/.gemini/config/rules/hotseat.md`，MCP 条目
 | WorkBuddy | `~/.workbuddy/mcp.json` | `~/.workbuddy/CODEBUDDY.md` | `~/.workbuddy/settings.json`：SessionStart、Stop | Claude |
 | CodeBuddy Code | `~/.codebuddy/.mcp.json` | `~/.codebuddy/CODEBUDDY.md` | `~/.codebuddy/settings.json`：SessionStart、Stop | Claude |
 | Qoder（海外版） | `~/.qoder/settings.json`（`QODER_CONFIG_DIR`） | `~/.qoder/AGENTS.md` | 同 settings.json：SessionStart、Stop | Claude |
-| Kimi Code | `~/.kimi-code/mcp.json`（`KIMI_CODE_HOME`），条目不带 `type` | `~/.kimi-code/AGENTS.md` | `config.toml` 末尾的 `# hotseat:begin … # hotseat:end` 标记块，里面是 `[[hooks]]`：UserPromptSubmit → `prompt`、Stop | 注入 `{"message": …}`；拦截 `{"hookSpecificOutput": {"permissionDecision": "deny", "permissionDecisionReason": …}}`，每轮最多一次 |
+| Kimi Code | `~/.kimi-code/mcp.json`（`KIMI_CODE_HOME`），条目不带 `type` | `~/.kimi-code/AGENTS.md` | `config.toml` 末尾的 `# hotseat:begin … # hotseat:end` 标记块，里面是 `[[hooks]]`（`kimi login` 会重写文件删掉注释，所以按 command 认 Hotseat 的条目）：UserPromptSubmit → `prompt`、Stop | 注入 `{"message": …}`；拦截 `{"hookSpecificOutput": {"permissionDecision": "deny", "permissionDecisionReason": …}}`，每轮最多一次 |
+| Kimi 桌面版 | `<App 数据目录>/kimi-desktop/daimon-share/daimon/runtime/kimi-code/home/mcp.json` | 同目录 `AGENTS.md` | 不写：App 每次启动都会重新生成内核的 `config.toml`，Hook 会被清掉 | — |
 | Gemini CLI | `~/.gemini/settings.json`，条目不带 `type` | `~/.gemini/GEMINI.md` | 同 settings.json：SessionStart、AfterAgent，`timeout` 单位毫秒 | 注入同 Claude；拦截 `{"decision": "deny", "reason": …}` |
 | 通义灵码 | 只能在界面添加（`init` 打印要粘贴的 JSON） | 只能在设置里填（`hotseat rules`） | `~/.lingma/settings.json`：UserPromptSubmit → `prompt`、Stop | Claude（UserPromptSubmit 的 `additionalContext`） |
 | Trae / Trae CN | 只能在界面添加 | 只能在设置里填 | 暂不写（只能在设置界面配置） | — |
