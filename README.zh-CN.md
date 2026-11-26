@@ -19,7 +19,7 @@ https://github.com/user-attachments/assets/83faeab8-de07-4dc1-8741-dad0870de4ac
 
 
 
-▶ [看完整视频（72 秒，有配音和配乐）](https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-zh.mp4) · [English](https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-en.mp4)
+▶ [看完整视频（71 秒，有配音和配乐）](https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-zh.mp4) · [English](https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-en.mp4)
 
 </div>
 
