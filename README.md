@@ -11,7 +11,11 @@ No more "summarize what you did" and "read the folder first".
 
 English · [简体中文](README.zh-CN.md)
 
-https://github.com/user-attachments/assets/346c380a-d7b8-4623-b454-60d136abecd2
+
+
+https://github.com/user-attachments/assets/2370dc73-4f9d-4900-ab96-027385f67fbe
+
+
 
 ▶ [Watch the full demo with sound](https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-en.mp4) (77 s) · [中文版](https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-zh.mp4)
 
