@@ -17,7 +17,7 @@ https://github.com/user-attachments/assets/2370dc73-4f9d-4900-ab96-027385f67fbe
 
 
 
-▶ [Watch the full demo with sound](https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-en.mp4) (77 s) · [中文版](https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-zh.mp4)
+▶ [Watch the full demo with sound](https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-en.mp4) (78 s) · [中文版](https://github.com/ntu-zjy/hotseat/releases/download/demo-video/hotseat-demo-zh.mp4)
 
 </div>
 
